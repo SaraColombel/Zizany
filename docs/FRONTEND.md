@@ -7,7 +7,7 @@
 ## API usage (frontend) :
 
 ### Authentication
-    - POST /login - implemented
-    - POST /register - planned
+    - POST /auth/login - implemented
+    - POST /auth/signup - in progress
     - GET /me - planned
 
