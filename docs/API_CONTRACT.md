@@ -15,10 +15,10 @@ Retrieve the currently authenticated user.
 - 401 Unauthorized
 
 
-## [X] POST /login
-Status : implemented
+## [ ] POST /login
+Status : in progress
 Authenticate a user and start a session.
-
+!! Check for error messages : Send from back, how do I display them ?
 ### Request body :
 ```json
 {
@@ -38,5 +38,7 @@ Authenticate a user and start a session.
 
 
 ## [ ] POST /register
-Status : planned
+Status : in progress
 Create a new user account.
+!! Check for error messages : Send from back, how do I display them ?
+
