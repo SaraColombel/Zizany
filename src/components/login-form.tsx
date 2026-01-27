@@ -43,7 +43,7 @@ export function LoginForm({
 
   async function onSubmit(values: LoginValues) {
     // IMPORTANT: cookies httpOnly => credentials: "include"
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/login`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -140,7 +140,7 @@ export function LoginForm({
                 {/* ---------- */}
 
                 <FieldDescription className="text-center">
-                  Don&apos;t have an account? <a href="/signup">Sign up</a>
+                  Don&apos;t have an account? <a href="/auth/signup">Sign up</a>
                 </FieldDescription>
               </Field>
             </FieldGroup>
