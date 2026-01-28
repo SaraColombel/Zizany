@@ -41,8 +41,10 @@ export function LoginForm({
     defaultValues: { email: "", password: "" },
   });
 
+  const [apiError, setApiError] = React.useState<string | null>(null);
+
   async function onSubmit(values: LoginValues) {
-    // IMPORTANT: cookies httpOnly => credentials: "include"
+    setApiError(null);
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -50,17 +52,16 @@ export function LoginForm({
       body: JSON.stringify(values),
     });
 
-    // // Optionnel mais recommandé: vérifier que /me marche (cookie bien posé)
-    // const me = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/me`, {
-    //   credentials: "include",
-    // });
+        if (!res.ok) {
+      try {
+        const data = await res.json();
+        setApiError(data?.error?.message ?? "Login failed");
+      } catch {
+        setApiError("Login failed");
+      }
+      return;
+    }
 
-    // if (!me.ok) {
-    //   setApiError("Login OK but session not found. (Cookie/CORS issue)");
-    //   return;
-    // }
-
-    // Redirection
     window.location.href = "/servers";
   }
   // -----------------
@@ -79,7 +80,6 @@ export function LoginForm({
           {/* HERE useForm */}
           <form onSubmit={handleSubmit(onSubmit)}>
           {/* ---------- */}
-
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -132,6 +132,13 @@ export function LoginForm({
                 )}
                 {/* ---------- */}
               </Field>
+
+              {apiError && (
+                <FieldDescription className="text-destructive text-center">
+                  {apiError}
+                </FieldDescription>
+              )}
+
               <Field>
                 {/* HERE useForm */}
                 <Button type="submit" disabled={isSubmitting}>
