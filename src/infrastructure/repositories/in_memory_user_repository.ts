@@ -1,5 +1,10 @@
-import { UserRepository } from "@/domain/user/user_repository";
-import { User } from "@/domain/user/user";
+/*
+ * InMemoryUserRepository
+ * Exemple d'implémentation du UserRepository du domaine.
+ */
+
+import { UserRepository } from "@/domain/repositories/user_repository";
+import { User, UserProperties } from "@/domain/entities/user";
 
 export class InMemoryUserRepository implements UserRepository {
   #database: Set<User>;
@@ -8,22 +13,24 @@ export class InMemoryUserRepository implements UserRepository {
   }
 
   async find_by_email(email: String): Promise<User | undefined> {
-    const user: User | undefined = this.#database
-      .values()
-      .find((user) => user.email == email);
-    return user;
+    return this.#database.values().find((user) => user.props.email === email);
   }
 
-  async get_all(): Promise<Set<User>> {
-    return this.#database;
+  async find_by_id(userId: number): Promise<User | undefined> {
+    return this.#database.values().find((user) => user.props.id === userId);
   }
 
-  async save(payload: User): Promise<User> {
-    const user = await this.find_by_email(payload.email);
-    if (!user) {
-      this.#database.add(payload);
-      return payload;
-    }
-    return user;
+  async get_all(): Promise<User[]> {
+    return [...this.#database];
+  }
+
+  async save(payload: UserProperties): Promise<void> {
+    this.#database.add(User.create(payload));
+  }
+
+  async verify_password(userId: number, password: string): Promise<boolean> {
+    const user = await this.find_by_id(userId);
+    if (!user) return false;
+    return user.props.password === password;
   }
 }
