@@ -1,8 +1,14 @@
-export class User {
-  constructor(
-    public id: number,
-    public email: String,
-    public password: String,
-    public username: String,
-  ) {}
+import { Entity } from "@/domain/core/entity";
+
+export interface UserProperties {
+  id: number;
+  email: string;
+  password: string;
+  username: string;
+}
+
+export class User extends Entity<UserProperties> {
+  static create(props: UserProperties) {
+    return new this(props);
+  }
 }
