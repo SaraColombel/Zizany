@@ -28,7 +28,6 @@ type SignupValues = {
 };
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
-
   const {
   register,
   handleSubmit,
@@ -39,7 +38,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   });
 
   const password = watch("password");
-
   const [apiError, setApiError] = React.useState<string | null>(null);
 
   async function onSubmit(values: SignupValues) {
@@ -51,24 +49,29 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     password: values.password,
   };
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(payload),
-  });
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
 
-  if (!res.ok) {
-    let msg = "Signup failed.";
-    try {
-      const data = await res.json();
-      if (typeof data?.message === "string") msg = data.message;
-    } catch {}
-    setApiError(msg);
-    return;
-  }
+    if (!res.ok) {
+      let msg = "Signup failed.";
+      try {
+        const data = await res.json();
+        if (typeof data?.error?.message === "string") msg = data.error.message;
+      } catch {
+      }
+      setApiError(msg);
+      return;
+    }
 
-  window.location.href = "/auth/login";
+      window.location.href = "/auth/login";
+    } catch {
+      setApiError("Network error: backend unreachable.");
+    }
 }
 
 
@@ -84,12 +87,12 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
         <form onSubmit={handleSubmit(onSubmit)}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="name">Full Name</FieldLabel>
+              <FieldLabel htmlFor="pseudo">Pseudo</FieldLabel>
               <Input
                 id="pseudo"
                 type="text"
                 placeholder="CoolPseudo42"
-                autoComplete="pseudo"
+                autoComplete="username"
                 {...register("pseudo", { required: "Pseudo is required" })}
               />
               {errors.pseudo && <FieldDescription className="text-destructive">{errors.pseudo.message}</FieldDescription>}
@@ -142,15 +145,15 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
 
               <FieldDescription>Please confirm your password.</FieldDescription>
             </Field>
+            {apiError && (
+              <FieldDescription className="text-destructive text-center">
+                {apiError}
+              </FieldDescription>
+            )}
               <Field>
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? "Creating..." : "Create Account"}
                 </Button>
-                {apiError && (
-                  <FieldDescription className="text-destructive text-center">
-                    {apiError}
-                  </FieldDescription>
-                )}
                 <FieldDescription className="px-6 text-center">
                   Already have an account? <a href="/auth/login">Sign in</a>
                 </FieldDescription>
