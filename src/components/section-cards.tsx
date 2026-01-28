@@ -17,7 +17,6 @@ const SERVERS = [
   {
     id: "srv-1",
     name: "Epitech",
-    trend: "up" as const,
     subtitle: "Main school server",
     members: 128,
     bannerUrl: "/servers/bannier.jpeg",
@@ -25,7 +24,6 @@ const SERVERS = [
   {
     id: "srv-2",
     name: "Döppelgang HQ",
-    trend: "down" as const,
     subtitle: "Internal tools & bots",
     members: 64,
     bannerUrl: "/servers/bannier.jpeg",
@@ -33,7 +31,6 @@ const SERVERS = [
   {
     id: "srv-3",
     name: "Space Nerds",
-    trend: "up" as const,
     subtitle: "Community & side projects",
     members: 42,
     bannerUrl: "/servers/bannier.jpeg",
@@ -44,10 +41,6 @@ export function SectionCards() {
   return (
     <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
       {SERVERS.map((server) => {
-        const isUp = server.trend === "up"
-        const TrendIcon = isUp ? IconTrendingUp : IconTrendingDown
-        const trendLabel = isUp ? "+12.5%" : "-20%"
-
         return (
           <Card key={server.id} className="@container/card">
             <CardHeader>
