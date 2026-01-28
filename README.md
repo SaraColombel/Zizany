@@ -1,108 +1,49 @@
 # Zizany (T-JSF-600-TLS1)
 
-Real Time Chat application with NodeJS + ExpressJS, and a client in NextJS.
+Real Time Chat application built with :
+- Next.js (frontend)
+- Express.js (REST API)
+- Socket.IO (real-time, coming next)
+- PostgreSQL (Docker)
 
-## Project overview
+## Architecture
 
-## High-level architecture
+- Frontend: Next.js (port 3000)
+- Backend API: Express.js (port 4000)
+- Database: PostgreSQL (Docker)
+- Admin tools:
+    - Adminer: http://localhost:8080
+    - Mailpit: http://localhost:8025
 
-## Layers & responsibilities
+## Prerequisites
 
-### UX layer (NextJS)
-
-Afficher, capter les actions, orchestrer les appels.
-Ce qu'il fait :
-- UI
-- state front (serveurs ouverts, channels actifs)
-- appels REST (CRUD) + connexion Socket (temps réel)
-- gestion token côté client (stockage + refresh)
-
-Ce qu'il ne fait pas :
-- règles de permissions
-- logique "Owner unique"
-- accès DB (no way)
-
-### Transport layer (REST & Socket.IO)
-
-Traduire le monde extérieur vers l'appli.
-
-#### REST Controllers (Express)
-
-Ce qu'il fait :
-- parse / validate (DTO)
-- auth middleware (vérifier JWT)
-- appeler un service
-- renvoyer codes HTTP + format d'erreur
-
-Ce qu'il ne fait pas :
-- règles métier
-- SQL/DB direct
-
-#### Socket Gateway (Socket.IO)
-
-Ce qu'il fait :
-- auth à la connexion (JWT)
-- join/leave rooms
-- recevoir events
-- déléguer aux services
-- émettre les events
-
-Ce qu'il ne fait pas :
-- persistance directe
-- permissions métier
-
-### Business logic layer (Services)
-
-Ce qu'il fait :
-- permissions & rôles
-- invariants (Owner unique, Owner cannot leave, etc.)
-- orchestration: plusieurs repos, validations métier
-- déclenchement d'events
-
-Ce qu'il ne fait pas :
-- manipuler req/res
-- connaître Socket.IO ou Express
-- connaître SQL concret
-
-### Data access layer (Repositories)
-
-Ce qu'il fait :
-- requêtes DB (SQL/ODM)
-- mapping DB -> objets (records)
-- transactions si besoin
-- pagination
-
-Il s'agît d'une abstraction de la base de données, nécessaire pour accéder aux données de la DB pour les interpréter, les standardiser et les rendre utilisable par les back layers. La raison d'être de cet intermédiaire est de rendre le projet testable sans DB et de permettre son évolutivité.
-
-### Database
-
-PostgreSQL
-- Tables / collections + relations
-- index
-- contraintes basiques
-
-## Functional modules
-
-### Authentification
-
-Actions REST minimales:
-- POST /auth/register
-- POST /auth/login
-- POST /auth/refresh
-- POST /auth/logout
-- GET /auth/me
-
-### Servers
-### Channels
-### Messages
-### Memberships
-
-## Data persistence & database choice
-
-## Real-time architecture
-
-## Testing strategy
-
-## Scalability & evolvability
+- Node.js (via nvm recommended)
+- Docker + Docker Compose
+- npm
 
 ## How to run
+
+### 1. Start services
+```bash
+docker compose up -d
+```
+
+### 2. Install dependencies
+```bash
+npm install
+```
+
+### 3. Start backend API
+```bash
+npm run dev:api
+```
+
+### 4. Start frontend
+```bash
+npm run dev
+```
+
+### 5. Health check
+```bash
+curl http://localhost:4000/api/health
+```
