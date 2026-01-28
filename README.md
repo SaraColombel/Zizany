@@ -83,6 +83,20 @@ PostgreSQL
 
 ## Functional modules
 
+### Authentification
+
+Actions REST minimales:
+- POST /auth/register
+- POST /auth/login
+- POST /auth/refresh
+- POST /auth/logout
+- GET /auth/me
+
+### Servers
+### Channels
+### Messages
+### Memberships
+
 ## Data persistence & database choice
 
 ## Real-time architecture
