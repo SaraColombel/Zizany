@@ -4,76 +4,25 @@ import * as React from "react"
 import { MessageList, UiMessage } from "./message-list"
 import { MessageComposer } from "./message-composer"
 
-// Historique mocké par serveur et channel
-const MOCK_HISTORY: Record<string, Record<string, UiMessage[]>> = {
-  "srv-1": {
-    general: [
-      {
-        id: "s1-g-1",
-        authorName: "Alice",
-        content: "Bienvenue sur le serveur Epitech 👋",
-        createdAt: "2024-01-01T09:00:00.000Z",
-      },
-      {
-        id: "s1-g-2",
-        authorName: "Bob",
-        content: "N’oubliez pas de lire le règlement dans #general.",
-        createdAt: "2024-01-01T09:05:00.000Z",
-      },
-    ],
-    random: [
-      {
-        id: "s1-r-1",
-        authorName: "Charlie",
-        content: "Ici c’est le channel pour les memes 😄",
-        createdAt: "2024-01-02T10:00:00.000Z",
-      },
-    ],
-  },
-  "srv-2": {
-    general: [
-      {
-        id: "s2-g-1",
-        authorName: "Bot",
-        content: "Bienvenue sur Döppelgang HQ.",
-        createdAt: "2024-01-03T08:00:00.000Z",
-      },
-      {
-        id: "s2-g-2",
-        authorName: "Admin",
-        content: "Les déploiements se font le vendredi.",
-        createdAt: "2024-01-03T08:10:00.000Z",
-      },
-    ],
-    random: [
-      {
-        id: "s2-r-1",
-        authorName: "Dev",
-        content: "Qui est chaud pour un game ce soir ?",
-        createdAt: "2024-01-04T18:30:00.000Z",
-      },
-    ],
-  },
-  "srv-3": {
-    general: [
-      {
-        id: "s3-g-1",
-        authorName: "SpaceNerd",
-        content: "Bienvenue sur Space Nerds 🚀",
-        createdAt: "2024-01-05T12:00:00.000Z",
-      },
-    ],
-    random: [
-      {
-        id: "s3-r-1",
-        authorName: "Astro",
-        content: "Vous avez vu la dernière photo de la NASA ?",
-        createdAt: "2024-01-05T12:30:00.000Z",
-      },
-    ],
-  },
-}
-
+/**
+ * ChatPane
+ * --------
+ * Main chat container for a given server + channel.
+ *
+ * IMPORTANT DESIGN CHOICE (for now):
+ * - NO message history is loaded yet
+ * - messages only exist for the current client session
+ *
+ * This component is intentionally prepared for:
+ * - real-time messages via Socket.IO
+ * - optimistic UI
+ * - future REST-based history loading
+ *
+ * But at this stage:
+ * - no REST fetch
+ * - no socket connection
+ * - no persistence
+ */
 export function ChatPane({
   serverId,
   channelId,
@@ -81,66 +30,119 @@ export function ChatPane({
   serverId: string
   channelId: string
 }) {
+  /**
+   * In-memory message list.
+   * This state will later be fed by:
+   * - optimistic messages (on send)
+   * - socket events (message:new)
+   * - REST history (future)
+   */
   const [messages, setMessages] = React.useState<UiMessage[]>([])
-  const [loading, setLoading] = React.useState(true)
+
+  /**
+   * Loading / error states are kept on purpose,
+   * even if unused for now, to keep the component API stable
+   * when backend integration starts.
+   */
+  const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
-  // Chargement historique (mock)
-  React.useEffect(() => {
-    let cancelled = false
-
-    async function loadHistory() {
-      try {
-        setLoading(true)
-        setError(null)
-
-        const serverHistory = MOCK_HISTORY[serverId] ?? {}
-        const channelHistory = serverHistory[channelId] ?? []
-
-        if (!cancelled) setMessages(channelHistory)
-      } catch (e) {
-        if (!cancelled) setError("Failed to load messages")
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    loadHistory()
-    return () => {
-      cancelled = true
-    }
-  }, [serverId, channelId])
-
+  /**
+   * Send handler called by MessageComposer.
+   *
+   * Current behavior:
+   * - immediately append an optimistic message
+   * - no backend call yet
+   *
+   * Future behavior:
+   * - emit socket event (message:create)
+   * - backend will broadcast message:new
+   * - optimistic message will be reconciled
+   */
   async function handleSend(content: string) {
     const optimistic: UiMessage = {
       id: crypto.randomUUID(),
       authorName: "You",
       content,
       createdAt: new Date().toISOString(),
+
+      // Client-only flag (must never be stored in DB)
       isOptimistic: true,
     }
 
     setMessages((prev) => [...prev, optimistic])
 
-    // TODO:
-    // socket.emit("message:create", { serverId, channelId, content })
+    /**
+     * TODO (backend):
+     * socket.emit("message:create", {
+     *   serverId,
+     *   channelId,
+     *   content,
+     * })
+     */
+  }
+
+  /**
+   * Edit handler (UI-only).
+   *
+   * This currently updates local state only.
+   * Later, this must:
+   * - check permissions (backend)
+   * - emit socket / REST update
+   */
+  function handleEditMessage(message: UiMessage) {
+    const next = window.prompt("Edit message:", message.content)
+    if (next == null) return
+
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === message.id
+          ? {
+              ...m,
+              content: next,
+              isOptimistic: true, // until backend confirms
+            }
+          : m
+      )
+    )
+  }
+
+  /**
+   * Delete handler (UI-only).
+   *
+   * This is a local removal for now.
+   * Backend integration will be required to:
+   * - enforce permissions
+   * - propagate deletion to other clients
+   */
+  function handleDeleteMessage(message: UiMessage) {
+    setMessages((prev) => prev.filter((m) => m.id !== message.id))
   }
 
   return (
     <div className="flex h-full flex-col">
-      {/* Channel header */}
+      {/* Channel header (purely informational for now) */}
       <div className="border-b px-4 py-3 text-sm">
         Channel {channelId}
       </div>
 
-      {/* Messages */}
+      {/* Message list */}
       <div className="flex-1 overflow-y-auto">
-        <MessageList messages={messages} loading={loading} error={error} />
+        <MessageList
+          messages={messages}
+          loading={loading}
+          error={error}
+          onEdit={handleEditMessage}
+          onDelete={handleDeleteMessage}
+        />
       </div>
 
-      {/* Composer */}
+      {/* Message composer */}
       <div className="border-t p-3">
-        <MessageComposer onSend={handleSend} disabled={!!error} />
+        <MessageComposer
+          onSend={handleSend}
+          disabled={!!error}
+        />
       </div>
     </div>
   )
