@@ -2,27 +2,28 @@ import * as React from "react"
 import { ServerChannelsSidebar } from "@/components/server-channels-sidebar"
 import { ServerMembersSidebar } from "@/components/server-members-sidebar"
 
-export default function ServerLayout({
+export default async function ServerLayout({
     children,
     params,
     }: {
     children: React.ReactNode
-    params: { serverId: string }
+    params: Promise<{ serverId: string }>
     }) {
-    const { serverId } = params
+    const { serverId } = await params
 
     return (
         <div className="flex flex-1 min-h-[calc(100vh-var(--header-height))]">
-        <div className="w-50 shrink-0 border-r">
+        {/* Channels */}
+        <div className="w-56 shrink-0 border-r">
             <ServerChannelsSidebar serverId={serverId} />
         </div>
 
-        {/* Messages (centre) */}
+        {/* Messages */}
         <main className="flex-1 min-w-0">
             {children}
         </main>
 
-        {/* Members (rabattable à droite) */}
+        {/* Members */}
         <ServerMembersSidebar serverId={serverId} />
         </div>
     )

@@ -1,38 +1,43 @@
 "use client"
 
-import * as React from "react"
-import { IconHash, IconVolume2, IconSettings } from "@tabler/icons-react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 
-import { NavMain } from "@/components/nav-main"
-import {
-    Sidebar,
-    SidebarContent,
-    SidebarHeader,
-} from "@/components/ui/sidebar"
-
-// Mock: plus tard => dépendra de serverId (API/Socket)
-const channelsData = {
-    navMain: [
-        { title: "general", url: "#", icon: IconHash },
-        { title: "random", url: "#", icon: IconHash },
-        { title: "voice", url: "#", icon: IconVolume2 },
-    ],
-    navSecondary: [
-        { title: "Channel settings", url: "#", icon: IconSettings },
-    ],
-}
+const CHANNELS = [
+  { id: "general", name: "general" },
+  { id: "random", name: "random" },
+]
 
 export function ServerChannelsSidebar({ serverId }: { serverId: string }) {
-    return (
-        <div className="h-full p-3">
-            <div className=" text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Channels
-            </div>
+  const pathname = usePathname()
 
-            <div className="mt-3 space-y-1 text-sm">
-                <button className="w-full text-left rounded px-2 py-1 hover:bg-muted"># general</button>
-                <button className="w-full text-left rounded px-2 py-1 hover:bg-muted"># random</button>
-            </div>
+  return (
+    <div className="p-3">
+      <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+        Channels
+      </div>
+
+      <div className="flex flex-col gap-1">
+        {CHANNELS.map((channel) => {
+          const href = `/servers/${serverId}/channels/${channel.id}`
+          const isActive = pathname === href
+
+          return (
+            <Link
+              key={channel.id}
+              href={href}
+              className={
+                "rounded px-2 py-1 text-sm " +
+                (isActive
+                  ? "bg-muted font-medium text-foreground"
+                  : "hover:bg-muted text-muted-foreground")
+              }
+            >
+              #{channel.name}
+            </Link>
+          )
+        })}
+      </div>
     </div>
-    )
+  )
 }

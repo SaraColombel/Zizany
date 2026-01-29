@@ -2,14 +2,13 @@
 
 import * as React from "react"
 import {
-  IconCamera,
   IconDatabase,
-  IconFileAi,
-  IconFileDescription,
   IconCirclePlus,
   IconSettings,
   IconList
 } from "@tabler/icons-react"
+
+import { useServers } from "@/components/servers-context"
 
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
@@ -21,98 +20,36 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar"
 
+type Server = {
+  id:number
+  name: string
+  thumbnail: string | null
+  banner: string | null
+}
+
 const data = {
   user: {
     name: "shadcn",
     email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+    avatar: "favicon.ico",
   },
-  navMain: [
-    {
-      title: "Epitech",
-      url: "/servers/srv-1",
-      icon: IconDatabase,
-      imageUrl: "/servers/epitech.png",
-    },
-    {
-      title: "Döppelgang HQ",
-      url: "/servers/srv-2",
-      icon: IconDatabase,
-    },
-    {
-      title: "Space Nerds",
-      url: "/servers/srv-3",
-      icon: IconDatabase,
-    },
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: IconCamera,
-      isActive: true,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: IconFileDescription,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: IconFileAi,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-  ],
   navSecondary: [
-    {
-      title: "Server List",
-      url: "/servers",
-      icon: IconList,
-    },
-    {
-      title: "Join a server",
-      url: "/servers",
-      icon: IconCirclePlus,
-    },
-    {
-      title: "Settings",
-      url: "#",
-      icon: IconSettings,
-    },
-  ]
+    { title: "Server List", url: "/servers", icon: IconList },
+    { title: "Join a server", url: "/servers", icon: IconCirclePlus },
+    { title: "Settings", url: "#", icon: IconSettings },
+  ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { servers } = useServers()
+
+  const navMain = servers.map((s) => ({
+    title: s.name,
+    url: `/servers/${s.id}`,
+    icon: IconDatabase,
+    imageUrl: s.thumbnail ?? undefined,
+  }))
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -121,7 +58,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </span>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMain} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
