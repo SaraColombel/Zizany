@@ -6,12 +6,9 @@ import {
   IconDatabase,
   IconFileAi,
   IconFileDescription,
-  IconFileWord,
-  IconHelp,
-  IconReport,
-  IconSearch,
-  IconCirclePlusFilled,
+  IconCirclePlus,
   IconSettings,
+  IconList
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -22,9 +19,6 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
 const data = {
@@ -103,7 +97,12 @@ const data = {
     {
       title: "Server List",
       url: "/servers",
-      icon: IconCirclePlusFilled,
+      icon: IconList,
+    },
+    {
+      title: "Join a server",
+      url: "/servers",
+      icon: IconCirclePlus,
     },
     {
       title: "Settings",
