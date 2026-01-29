@@ -5,7 +5,7 @@ export interface UserProperties {
   email: string;
   password: string;
   username: string;
-  thumnail?: string;
+  thumbnail?: string;
 }
 
 export class User extends Entity<UserProperties> {

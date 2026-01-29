@@ -18,7 +18,7 @@ model Users {
     email       String        @unique
     password    String
     username    String
-    thumnail    String?
+    thumbnail   String?
     servers     Servers[]
     created_at  DateTime      @default(now())
     updated_at  DateTime      @default(now()) @updatedAt

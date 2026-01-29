@@ -1,9 +1,9 @@
 import { prisma } from "@/infrastructure/prisma/prisma.client";
 import { Server } from "@/domain/entities/server";
 import { ServerRepository } from "@/domain/repositories/server_repository";
+import { PrismaServerMapper } from "@/infrastructure/prisma/mappers/prisma_server_mapper";
 
 import type { ServerProperties } from "@/domain/entities/server";
-import { PrismaServerMapper } from "@/infrastructure/prisma/mappers/prisma_server_mapper";
 
 export class PrismaServerRepository extends ServerRepository {
   async find_by_id(id: number): Promise<Server | undefined> {
