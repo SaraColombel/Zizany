@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { prisma } from "@/infrastructure/prisma/prisma.client";
+import { prisma } from "@/infrastructure/persistence/prisma/prisma.client";
 
 async function main() {
   const users = await prisma.users.createMany({

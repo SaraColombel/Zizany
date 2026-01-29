@@ -1,7 +1,7 @@
-import { prisma } from "@/infrastructure/prisma/prisma.client";
+import { prisma } from "@/infrastructure/persistence/prisma/prisma.client";
 import { Membership } from "@/domain/entities/membership";
 import { MembershipRepository } from "@/domain/repositories/membership_repository";
-import { PrismaMembershipMapper } from "@/infrastructure/prisma/mappers/prisma_membership_mapper";
+import { PrismaMembershipMapper } from "@/infrastructure/persistence/prisma/mappers/prisma_membership_mapper";
 
 import type { MembershipProperties } from "@/domain/entities/membership";
 

@@ -1,7 +1,7 @@
-import { prisma } from "@/infrastructure/prisma/prisma.client";
+import { prisma } from "@/infrastructure/persistence/prisma/prisma.client";
 import { Channel } from "@/domain/entities/channel";
 import { ChannelRepository } from "@/domain/repositories/channel_repository";
-import { PrismaChannelMapper } from "@/infrastructure/prisma/mappers/prisma_channel_mapper";
+import { PrismaChannelMapper } from "@/infrastructure/persistence/prisma/mappers/prisma_channel_mapper";
 
 import type { ChannelProperties } from "@/domain/entities/channel";
 
