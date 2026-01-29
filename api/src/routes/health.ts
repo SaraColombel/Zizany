@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "@/infrastructure/prisma/prisma.client";
+import { PrismaServerRepository } from "@/infrastructure/prisma/repositories/prisma_server_repository";
 
 export const healthRouter = Router();
 
@@ -18,7 +19,7 @@ healthRouter.get("/health", async (_, res, next) => {
 
 healthRouter.get("/servers", async (_, res, next) => {
   try {
-    const servers = await prisma.servers.findMany();
+    const servers = await new PrismaServerRepository().get_all();
     res.json({
       servers,
     });
