@@ -3,13 +3,24 @@ import { prisma } from "@/infrastructure/prisma/prisma.client";
 
 export const healthRouter = Router();
 
-healthRouter.get("/health", async (_req, res, next) => {
+healthRouter.get("/health", async (_, res, next) => {
   try {
-    const result = await prisma.user.findMany();
+    const users = await prisma.users.findMany();
     res.json({
       status: "ok",
-      users: result,
+      data: users,
       timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+healthRouter.get("/servers", async (_, res, next) => {
+  try {
+    const servers = await prisma.servers.findMany();
+    res.json({
+      servers,
     });
   } catch (err) {
     next(err);
