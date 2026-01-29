@@ -20,7 +20,6 @@ async function main() {
         username: "jeremyb",
       },
     ],
-    skipDuplicates: true,
   });
 
   const servers = await prisma.servers.createMany({
@@ -38,7 +37,73 @@ async function main() {
         owner_id: 3,
       },
     ],
-    skipDuplicates: true,
+  });
+
+  const roles = await prisma.roles.createMany({
+    data: [
+      {
+        name: "Owner",
+      },
+      {
+        name: "Admin",
+      },
+      {
+        name: "Member",
+      },
+    ],
+  });
+
+  const memberships = await prisma.memberships.createMany({
+    data: [
+      // Owner
+      {
+        user_id: 1,
+        server_id: 1,
+        role_id: 1,
+      },
+      {
+        user_id: 2,
+        server_id: 2,
+        role_id: 1,
+      },
+      {
+        user_id: 3,
+        server_id: 3,
+        role_id: 1,
+      },
+      // Admin
+      {
+        user_id: 1,
+        server_id: 2,
+        role_id: 2,
+      },
+      {
+        user_id: 2,
+        server_id: 3,
+        role_id: 2,
+      },
+      {
+        user_id: 3,
+        server_id: 1,
+        role_id: 2,
+      },
+      // Member
+      {
+        user_id: 1,
+        server_id: 3,
+        role_id: 3,
+      },
+      {
+        user_id: 2,
+        server_id: 1,
+        role_id: 3,
+      },
+      {
+        user_id: 3,
+        server_id: 2,
+        role_id: 3,
+      },
+    ],
   });
 }
 
