@@ -1,6 +1,7 @@
 # Zizany (T-JSF-600-TLS1)
 
 Real Time Chat application built with :
+
 - Next.js (frontend)
 - Express.js (REST API)
 - Socket.IO (real-time, coming next)
@@ -12,8 +13,8 @@ Real Time Chat application built with :
 - Backend API: Express.js (port 4000)
 - Database: PostgreSQL (Docker)
 - Admin tools:
-    - Adminer: http://localhost:8080
-    - Mailpit: http://localhost:8025
+  - Adminer: http://localhost:8080
+  - Mailpit: http://localhost:8025
 
 ## Prerequisites
 
@@ -24,26 +25,39 @@ Real Time Chat application built with :
 ## How to run
 
 ### 1. Start services
+
 ```bash
 docker compose up -d
 ```
 
 ### 2. Install dependencies
+
 ```bash
 npm install
 ```
 
 ### 3. Start backend API
+
 ```bash
 npm run dev:api
 ```
 
 ### 4. Start frontend
+
 ```bash
 npm run dev
 ```
 
-### 5. Health check
+### 5. Populate database
+
+```bash
+npx prisma generate
+npx prisma migrate reset
+npx prisma db seed
+```
+
+### 6. Health check
+
 ```bash
 curl http://localhost:4000/api/health
 ```
