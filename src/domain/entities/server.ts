@@ -1,6 +1,6 @@
 import { Entity } from "@/domain/core/entity";
 
-interface ServerProperties {
+export interface ServerProperties {
   id: number;
   name: string;
   owner_id: number;
