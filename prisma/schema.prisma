@@ -18,7 +18,7 @@ model Users {
     email       String        @unique
     password    String
     username    String
-    thumnail    String?
+    thumbnail   String?
     servers     Servers[]
     created_at  DateTime      @default(now())
     updated_at  DateTime      @default(now()) @updatedAt
@@ -57,8 +57,6 @@ model Memberships {
     user       Users    @relation(fields: [user_id], references: [id])
     server     Servers  @relation(fields: [server_id], references: [id])
     role       Roles    @relation(fields: [role_id], references: [id])
-
-    @@unique([user_id, server_id])
 }
 
 model Channels {
@@ -80,6 +78,4 @@ model Messages {
     updated_at DateTime @default(now()) @updatedAt
     channel    Channels @relation(fields: [channel_id], references: [id])
     user       Users    @relation(fields: [user_id], references: [id])
-
-    @@unique([channel_id, user_id])
 }

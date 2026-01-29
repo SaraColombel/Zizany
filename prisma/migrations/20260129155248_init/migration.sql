@@ -4,7 +4,7 @@ CREATE TABLE "Users" (
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "username" TEXT NOT NULL,
-    "thumnail" TEXT,
+    "thumbnail" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -77,12 +77,6 @@ CREATE UNIQUE INDEX "Servers_owner_id_key" ON "Servers"("owner_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Roles_name_key" ON "Roles"("name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Memberships_user_id_server_id_key" ON "Memberships"("user_id", "server_id");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Messages_channel_id_user_id_key" ON "Messages"("channel_id", "user_id");
 
 -- AddForeignKey
 ALTER TABLE "Servers" ADD CONSTRAINT "Servers_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
