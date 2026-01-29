@@ -1,8 +1,8 @@
 import { Entity } from "@/domain/core/entity";
 
-type RoleName = "Owner" | "Admin" | "Member";
+export type RoleName = "Owner" | "Admin" | "Member";
 
-interface RoleProperties {
+export interface RoleProperties {
   id: number;
   name: RoleName;
 }

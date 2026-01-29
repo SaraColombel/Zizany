@@ -1,6 +1,6 @@
 import { Entity } from "@/domain/core/entity";
 
-interface MessageProperties {
+export interface MessageProperties {
   id: number;
   channel_id: number;
   user_id: number;

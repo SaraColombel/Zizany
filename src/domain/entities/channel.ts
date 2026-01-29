@@ -1,6 +1,6 @@
 import { Entity } from "@/domain/core/entity";
 
-interface ChannelProperties {
+export interface ChannelProperties {
   id: number;
   server_id: number;
   name: string;
