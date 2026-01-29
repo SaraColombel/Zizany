@@ -1,9 +1,12 @@
-export default function Page({ params }: { params: { serverId: string } }) {
-  return (
-    <div className="p-4">
-      <div className="text-sm text-muted-foreground">
-        Messages du serveur {params.serverId}
-      </div>
-    </div>
-  )
+import { redirect } from "next/navigation"
+
+export default async function ServerPage({
+  params,
+}: {
+  params: Promise<{ serverId: string }>
+}) {
+  const { serverId } = await params
+
+  // Redirige vers le premier channel du serveur
+  redirect(`/servers/${serverId}/channels/general`)
 }
