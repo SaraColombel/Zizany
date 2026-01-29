@@ -2,27 +2,43 @@ import "dotenv/config";
 import { prisma } from "@/infrastructure/prisma/prisma.client";
 
 async function main() {
-  const users = await prisma.user.createMany({
+  const users = await prisma.users.createMany({
     data: [
       {
-        id: 0,
         email: "sara.colombel@epitech.eu",
         password: "sara",
         username: "sarac",
       },
       {
-        id: 1,
         email: "mathieu.vergez@epitech.eu",
         password: "mathieu",
         username: "mathieuv",
       },
       {
-        id: 2,
         email: "jeremy.boubee@epitech.eu",
         password: "jeremy",
         username: "jeremyb",
       },
     ],
+    skipDuplicates: true,
+  });
+
+  const servers = await prisma.servers.createMany({
+    data: [
+      {
+        name: "Sara server",
+        owner_id: 1,
+      },
+      {
+        name: "Mathieu server",
+        owner_id: 2,
+      },
+      {
+        name: "Jeremy server",
+        owner_id: 3,
+      },
+    ],
+    skipDuplicates: true,
   });
 }
 
