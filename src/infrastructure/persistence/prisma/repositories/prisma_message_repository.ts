@@ -1,7 +1,7 @@
-import { prisma } from "@/infrastructure/prisma/prisma.client";
+import { prisma } from "@/infrastructure/persistence/prisma/prisma.client";
 import { Message } from "@/domain/entities/message";
 import { MessageRepository } from "@/domain/repositories/message_repository";
-import { PrismaMessageMapper } from "@/infrastructure/prisma/mappers/prisma_message_mapper";
+import { PrismaMessageMapper } from "@/infrastructure/persistence/prisma/mappers/prisma_message_mapper";
 
 import type { MessageProperties } from "@/domain/entities/message";
 

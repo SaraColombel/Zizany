@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "dev:api": "tsx watch api/src/server.ts",
+    "dev:api": "tsx watch src/infrastructure/http/express/server.ts",
     "dev:all": "concurrently -n web, api \"npm run dev\" \"npm run dev:api\"",
     "build": "next build",
     "start": "next start",
@@ -28,6 +28,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tabler/icons-react": "^3.36.1",
     "@tanstack/react-table": "^8.21.3",
+    "@vinejs/vine": "^4.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cookie-parser": "^1.4.7",

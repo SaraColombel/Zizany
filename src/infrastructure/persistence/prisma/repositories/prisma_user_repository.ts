@@ -1,7 +1,7 @@
-import { prisma } from "@/infrastructure/prisma/prisma.client";
+import { prisma } from "@/infrastructure/persistence/prisma/prisma.client";
 import { User } from "@/domain/entities/user";
 import { UserRepository } from "@/domain/repositories/user_repository";
-import { PrismaUserMapper } from "@/infrastructure/prisma/mappers/prisma_user_mapper";
+import { PrismaUserMapper } from "@/infrastructure/persistence/prisma/mappers/prisma_user_mapper";
 
 import type { UserProperties } from "@/domain/entities/user";
 

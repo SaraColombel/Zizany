@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { prisma } from "@/infrastructure/prisma/prisma.client";
-import { PrismaServerRepository } from "@/infrastructure/prisma/repositories/prisma_server_repository";
-import { PrismaUserRepository } from "@/infrastructure/prisma/repositories/prisma_user_repository";
-import { PrismaMembershipRepository } from "@/infrastructure/prisma/repositories/prisma_membership_repository";
+import { prisma } from "@/infrastructure/persistence/prisma/prisma.client";
+import { PrismaServerRepository } from "@/infrastructure/persistence/prisma/repositories/prisma_server_repository";
+import { PrismaUserRepository } from "@/infrastructure/persistence/prisma/repositories/prisma_user_repository";
+import { PrismaMembershipRepository } from "@/infrastructure/persistence/prisma/repositories/prisma_membership_repository";
 
 export const healthRouter = Router();
 
