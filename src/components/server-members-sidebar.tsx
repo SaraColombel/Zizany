@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { IconUsers, IconChevronLeft, IconChevronRight } from "@tabler/icons-react"
+import { cn } from "@/lib/utils"
 
 const membersData = [
     { name: "Sara" },
@@ -30,14 +31,7 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
             <button
                 onClick={() => setOpen(v => !v)}
                 aria-label="Toggle members panel"
-                className="
-                    rounded
-                    p-1
-                    hover:bg-muted
-                    cursor-pointer
-                    transition
-                "
-                >
+                className={cn("rounded p-1 hover:bg-muted cursor-pointer transition")}>
                 {open ? (
                     <IconChevronRight className="h-4 w-4" />
                 ) : (

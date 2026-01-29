@@ -15,8 +15,8 @@
 
 ### Servers
     - POST /servers - planned
-    - GET /servers - planned
-    - GET /servers/{id} - planned
+    - GET /servers - in progress
+    - GET /servers/{id} - in progress
     - PUT /servers/{id} - planned
     - DELETE /servers/{id} - planned
     - POST /servers/{id}/join - planned
