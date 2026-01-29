@@ -1,11 +1,11 @@
 import { Entity } from "@/domain/core/entity";
 
 export interface MembershipProperties {
+  // Utilisation des id ou des noms dans le domaine (pour les FK) ??
   id: number;
   user_id: number;
   server_id: number;
-  roleId: number;
-  // Utilisation des id ou des noms dans le domaine ??
+  role_id: number;
 }
 
 export class Membership extends Entity<MembershipProperties> {

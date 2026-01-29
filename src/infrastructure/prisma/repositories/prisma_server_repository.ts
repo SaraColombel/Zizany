@@ -9,7 +9,7 @@ export class PrismaServerRepository extends ServerRepository {
   async find_by_id(id: number): Promise<Server | undefined> {
     const data = await prisma.servers.findUnique({
       where: {
-        id: id,
+        id,
       },
     });
     if (!data) return undefined;
