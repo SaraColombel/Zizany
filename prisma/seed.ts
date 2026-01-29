@@ -105,6 +105,43 @@ async function main() {
       },
     ],
   });
+
+  const channels = await prisma.channels.createMany({
+    data: [
+      {
+        server_id: 1,
+        name: "Sara channel",
+      },
+      {
+        server_id: 2,
+        name: "Mathieu channel",
+      },
+      {
+        server_id: 3,
+        name: "Jeremy channel",
+      },
+    ],
+  });
+
+  const messages = await prisma.messages.createMany({
+    data: [
+      {
+        channel_id: 1,
+        user_id: 2,
+        content: "Bonjour sara",
+      },
+      {
+        channel_id: 2,
+        user_id: 3,
+        content: "Bonjour mathieu",
+      },
+      {
+        channel_id: 3,
+        user_id: 1,
+        content: "Bonjour jeremy",
+      },
+    ],
+  });
 }
 
 main()

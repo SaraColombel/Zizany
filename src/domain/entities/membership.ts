@@ -2,8 +2,8 @@ import { Entity } from "@/domain/core/entity";
 
 interface MembershipProperties {
   id: number;
-  userId: number;
-  serverId: number;
+  user_id: number;
+  server_id: number;
   roleId: number;
   // Utilisation des id ou des noms dans le domaine ??
 }
