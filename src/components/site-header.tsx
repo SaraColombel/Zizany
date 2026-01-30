@@ -4,6 +4,7 @@ import { useServers } from "@/components/servers-context"
 import { usePathname } from "next/navigation"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
 
 export function SiteHeader() {
   const pathname = usePathname()
@@ -27,6 +28,26 @@ export function SiteHeader() {
         <SidebarTrigger className="-ml-1 cursor-pointer [&_svg]:cursor-pointer" />
         <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
         <h1 className="text-base font-medium">{title}</h1>
+
+        {/* Create invitation button aligned to the right when on a specific server */}
+        {serverId && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="ml-auto h-8 cursor-pointer px-3 text-xs"
+            onClick={() => {
+              // Placeholder: later this will call something like
+              // POST /api/servers/:id/invitations and show a generated link.
+              window.alert(
+                "Create invitation is not wired to the backend yet.\n" +
+                  "Later, this button will generate an invitation link for this server."
+              )
+            }}
+          >
+            Create invitation
+          </Button>
+        )}
       </div>
     </header>
   )
