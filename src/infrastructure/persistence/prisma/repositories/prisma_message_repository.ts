@@ -67,11 +67,16 @@ export class PrismaMessageRepository extends MessageRepository {
   async save(payload: MessageProperties): Promise<void> {
     await prisma.messages.create({
       data: {
-        id: payload.id,
         channel_id: payload.channel_id,
         user_id: payload.user_id,
         content: payload.content,
       },
+    });
+  }
+
+  async delete(id: number): Promise<void> {
+    await prisma.messages.delete({
+      where: { id },
     });
   }
 }

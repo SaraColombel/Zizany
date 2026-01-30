@@ -15,8 +15,8 @@
 
 ### Servers
     - POST /servers - planned
-    - GET /servers - in progress
-    - GET /servers/{id} - in progress
+    - GET /servers - done
+    - GET /servers/{id} - done
     - PUT /servers/{id} - planned
     - DELETE /servers/{id} - planned
     - POST /servers/{id}/join - planned
@@ -27,15 +27,15 @@
 
 ### Channels
     - POST /servers/{serverId}/channels - planned
-    - GET /servers/{serverId}/channels - planned
-    - GET /channels/{id} - planned
+    - GET /servers/{serverId}/channels - done
+    - GET /channels/{id} - done
     - PUT /channels/{id} - planned
     - DELETE /channels/{id} - planned
 
 
 ### Messages
     - POST /channels/{id}/messages - planned
-    - GET /channels/{id}/messages - planned
+    - GET /channels/{id}/messages - done
     - DELETE /messages/{id} - planned
 
 

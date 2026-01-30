@@ -8,5 +8,7 @@ const messageController = new MessageController();
 
 router.get("/:id", channelController.index);
 router.get("/:id/messages", messageController.all);
+router.post("/:id/messages", messageController.create);
+router.delete("/:channelId/messages/:messageId", messageController.delete);
 
 export default router;

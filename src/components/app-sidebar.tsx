@@ -128,6 +128,13 @@ export function AppSidebar({
      * If undefined, NavMain will fallback to the default icon.
      */
     imageUrl: s.thumbnail ?? undefined,
+
+    /**
+     * Placeholder: all servers are leavable for now.
+     * Once we know the current user's role per server, this will become:
+     *   canLeave = role !== "Owner"
+     */
+    canLeave: true,
   }))
 
   return (

@@ -174,8 +174,11 @@ export function ChatPane({
    * - optimistic message will be reconciled
    */
   async function handleSend(content: string) {
+    // Create a temporary optimistic message id so we can update status later.
+    const tempId = crypto.randomUUID()
+
     const optimistic: UiMessage = {
-      id: crypto.randomUUID(),
+      id: tempId,
       authorName: "You",
       content,
       createdAt: new Date().toISOString(),
@@ -186,14 +189,38 @@ export function ChatPane({
 
     setMessages((prev) => [...prev, optimistic])
 
-    /**
-     * TODO (backend):
-     * socket.emit("message:create", {
-     *   serverId,
-     *   channelId,
-     *   content,
-     * })
-     */
+    try {
+      const res = await fetch(
+        `http://localhost:4000/api/channels/${channelId}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content }),
+        }
+      )
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+
+      // Mark the optimistic message as successfully sent.
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId
+            ? { ...m, isOptimistic: false }
+            : m
+        )
+      )
+    } catch {
+      // Mark the optimistic message as failed.
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId
+            ? { ...m, isOptimistic: false, isFailed: true }
+            : m
+        )
+      )
+    }
   }
 
   /**
@@ -224,13 +251,41 @@ export function ChatPane({
   /**
    * Delete handler (UI-only).
    *
-   * This is a local removal for now.
-   * Backend integration will be required to:
-   * - enforce permissions
-   * - propagate deletion to other clients
+   * Current behavior:
+   * - calls backend DELETE /api/channels/:channelId/messages/:messageId
+   * - on success, removes the message from local state
+   *
+   * Permissions (who can delete what) are expected to be enforced
+   * server-side later (owner / admin / author).
    */
-  function handleDeleteMessage(message: UiMessage) {
-    setMessages((prev) => prev.filter((m) => m.id !== message.id))
+  async function handleDeleteMessage(message: UiMessage) {
+    // If this is a purely optimistic (local-only) message or the id is not numeric,
+    // we just remove it locally without calling the backend.
+    const numericId = Number(message.id)
+    if (!Number.isFinite(numericId)) {
+      setMessages((prev) => prev.filter((m) => m.id !== message.id))
+      return
+    }
+
+    try {
+      const res = await fetch(
+        `http://localhost:4000/api/channels/${channelId}/messages/${message.id}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+
+      setMessages((prev) => prev.filter((m) => m.id !== message.id))
+    } catch (e) {
+      // Keep the message in the UI for now and just notify the user.
+      console.error(e)
+      window.alert("Failed to delete message (backend error).")
+    }
   }
 
   return (
