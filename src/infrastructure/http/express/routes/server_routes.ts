@@ -1,0 +1,13 @@
+import { Router } from "express";
+import { ServerController } from "../controllers/server_controller";
+import { MembershipController } from "../controllers/membership_controller";
+
+const router = Router();
+const serverController = new ServerController();
+const membershipController = new MembershipController();
+
+router.get("/", serverController.all);
+router.get("/:id", serverController.index);
+router.get("/:id/members", membershipController.all);
+
+export default router;
