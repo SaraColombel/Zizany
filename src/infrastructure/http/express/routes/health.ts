@@ -3,64 +3,57 @@ import { prisma } from "@/infrastructure/persistence/prisma/prisma.client";
 import { PrismaServerRepository } from "@/infrastructure/persistence/prisma/repositories/prisma_server_repository";
 import { PrismaUserRepository } from "@/infrastructure/persistence/prisma/repositories/prisma_user_repository";
 import { PrismaMembershipRepository } from "@/infrastructure/persistence/prisma/repositories/prisma_membership_repository";
+import { HealthController } from "../controllers/health_controller";
 
-export const healthRouter = Router();
+const router = Router();
+const healthController = new HealthController();
 
-healthRouter.get("/health", async (_, res, next) => {
-  try {
-    const users = await prisma.users.findMany();
-    res.json({
-      status: "ok",
-      data: users,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+router.get("/", healthController.handle);
 
-healthRouter.get("/me", async (_, res, next) => {
-  try {
-    const user = await new PrismaUserRepository().get_all();
-    res.json({
-      user,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+export default router;
 
-healthRouter.get("/servers", async (_, res, next) => {
-  try {
-    const servers = await new PrismaServerRepository().get_all();
-    res.json({
-      servers,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+// healthRouter.get("/me", async (_, res, next) => {
+//   try {
+//     const user = await new PrismaUserRepository().get_all();
+//     res.json({
+//       user,
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// });
 
-healthRouter.get("/servers/:id", async (req, res, next) => {
-  try {
-    const id = parseInt(req.params.id);
-    const server = await new PrismaServerRepository().find_by_id(id);
-    res.json({
-      server,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+// healthRouter.get("/servers", async (_, res, next) => {
+//   try {
+//     const servers = await new PrismaServerRepository().get_all();
+//     res.json({
+//       servers,
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// });
 
-healthRouter.get("/servers/:id/members", async (req, res, next) => {
-  try {
-    const id = parseInt(req.params.id);
-    const members = await new PrismaMembershipRepository().get_by_server_id(id);
-    res.json({
-      members,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+// healthRouter.get("/servers/:id", async (req, res, next) => {
+//   try {
+//     const id = parseInt(req.params.id);
+//     const server = await new PrismaServerRepository().find_by_id(id);
+//     res.json({
+//       server,
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// });
+
+// healthRouter.get("/servers/:id/members", async (req, res, next) => {
+//   try {
+//     const id = parseInt(req.params.id);
+//     const members = await new PrismaMembershipRepository().get_by_server_id(id);
+//     res.json({
+//       members,
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// });
