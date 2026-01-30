@@ -73,4 +73,33 @@ export class MessageController {
             next(err);
         }
     }
+
+    /**
+   * PATCH /api/channels/:channelId/messages/:messageId
+   *
+   * Overwrites the content of a single message.
+   * Permissions (who can edit) must be enforced later.
+   */
+
+    async update(req: Request, res: Response, next: NextFunction) {
+        try {
+            const messageId = parseInt(req.params.messageId[0]);
+            const { content } = req.body;
+
+            if (!Number.isFinite(messageId)) {
+                return res.status(400).json({ message: "Invalid message id" });
+            }
+
+            if (!content || typeof content !== "string") {
+                return res.status(400).json({ message: "content is required" });
+            }
+
+            await new PrismaMessageRepository().update(messageId, content);
+
+            console.log(`[MessageController] Updated message with id=${messageId}`);
+            return res.status(204).send();
+        } catch (err) {
+            next(err);
+        }
+    }
 }

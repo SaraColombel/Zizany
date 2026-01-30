@@ -23,6 +23,12 @@ export type UiMessage = {
   createdAt: string
 
   /**
+   * True when the message content has been edited
+   * after its initial creation.
+   */
+  isEdited?: boolean
+
+  /**
    * True while the message has been sent by the client
    * but not yet confirmed by the backend (optimistic UI).
    */
@@ -121,6 +127,7 @@ export function MessageList({
             <div className="flex items-center gap-2">
               {/* Timestamp + client-side delivery status */}
               <span>
+                {m.isEdited && "(edited) "}
                 {new Date(m.createdAt).toLocaleTimeString()}
                 {m.isOptimistic && " · sending…"}
                 {m.isFailed && " · failed"}

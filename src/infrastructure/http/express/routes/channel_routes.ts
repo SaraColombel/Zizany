@@ -10,5 +10,6 @@ router.get("/:id", channelController.index);
 router.get("/:id/messages", messageController.all);
 router.post("/:id/messages", messageController.create);
 router.delete("/:channelId/messages/:messageId", messageController.delete);
+router.patch("/:channelId/messages/:messageId", messageController.update);
 
 export default router;

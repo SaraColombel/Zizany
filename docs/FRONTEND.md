@@ -34,9 +34,9 @@
 
 
 ### Messages
-    - POST /channels/{id}/messages - planned
+    - POST /channels/{id}/messages - done
     - GET /channels/{id}/messages - done
-    - DELETE /messages/{id} - planned
+    - DELETE /messages/{id} - done
 
 
 ### Real-time (WebSocket/SSE)

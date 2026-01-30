@@ -79,4 +79,11 @@ export class PrismaMessageRepository extends MessageRepository {
       where: { id },
     });
   }
+
+  async update(id: number, content: string): Promise<void> {
+    await prisma.messages.update({
+      where: { id },
+      data: { content },
+    });
+  }
 }

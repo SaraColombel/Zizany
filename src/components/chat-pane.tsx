@@ -70,6 +70,15 @@ export function ChatPane({
             const base = raw && raw.props ? raw.props : raw
             if (!base) return null
 
+            const createdAt =
+              typeof base.created_at === "string"
+                ? base.created_at
+                : new Date().toISOString()
+            const updatedAt =
+              typeof base.updated_at === "string"
+                ? base.updated_at
+                : createdAt
+
             // MessageDTO shape from backend:
             // {
             //   id, channel_id, content, created_at, updated_at,
@@ -84,7 +93,8 @@ export function ChatPane({
               id: String(base.id),
               authorName: username,
               content: String(base.content ?? ""),
-              createdAt: String(base.created_at ?? new Date().toISOString()),
+              createdAt,
+              isEdited: createdAt !== updatedAt,
             } as UiMessage
           })
           .filter((m: UiMessage | null): m is UiMessage => m !== null)
@@ -183,8 +193,9 @@ export function ChatPane({
       content,
       createdAt: new Date().toISOString(),
 
-      // Client-only flag (must never be stored in DB)
+      // Client-only flags (must never be stored in DB)
       isOptimistic: true,
+      isEdited: false,
     }
 
     setMessages((prev) => [...prev, optimistic])
@@ -226,26 +237,78 @@ export function ChatPane({
   /**
    * Edit handler (UI-only).
    *
-   * This currently updates local state only.
+   * This currently updates bd.
    * Later, this must:
    * - check permissions (backend)
    * - emit socket / REST update
    */
-  function handleEditMessage(message: UiMessage) {
+  async function handleEditMessage(message: UiMessage) {
     const next = window.prompt("Edit message:", message.content)
     if (next == null) return
+
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === message.content) return;
 
     setMessages((prev) =>
       prev.map((m) =>
         m.id === message.id
           ? {
               ...m,
-              content: next,
-              isOptimistic: true, // until backend confirms
+              content: trimmed,
+              isOptimistic: true,
+              isFailed: false,
             }
           : m
       )
-    )
+    );
+    const numericId = Number(message.id);
+
+    if (!Number.isFinite(numericId)) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === message.id ? { ...m, isOptimistic: false } : m
+        )
+      );
+    return;
+    }
+
+    try {
+      const res = await fetch(
+        `http://localhost:4000/api/channels/${channelId}/messages/${numericId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: trimmed }),
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === message.id
+            ? { ...m, isOptimistic: false, isEdited: true }
+            : m
+        )
+      );
+    } catch (e) {
+      console.error(e);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === message.id
+            ? {
+                ...m,
+                content: message.content,
+                isOptimistic: false,
+                isFailed: true,
+              }
+            : m
+        )
+      );
+      window.alert("Failed to update message (backend error).");
+    }
   }
 
   /**

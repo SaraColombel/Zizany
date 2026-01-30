@@ -7,4 +7,5 @@ export abstract class MessageRepository {
   abstract get_by_channel(channel_id: number): Promise<MessageDTO[]>;
   abstract save(payload: MessageProperties): Promise<void>;
   abstract delete(id: number): Promise<void>;
+  abstract update(id: number, content: string): Promise<void>;
 }
