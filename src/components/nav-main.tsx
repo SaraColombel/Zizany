@@ -33,7 +33,7 @@ export function NavMain({
               pathname === item.url || pathname.startsWith(item.url + "/")
 
             return (
-              <SidebarMenuItem key={item.title}>
+              <SidebarMenuItem key={item.url}>
                 <SidebarMenuButton asChild tooltip={item.title} isActive={isActive}>
                   <Link href={item.url}>
                     {item.imageUrl ? (
