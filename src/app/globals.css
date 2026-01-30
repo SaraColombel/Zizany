@@ -125,4 +125,13 @@
     height: 100%;
     overflow: hidden;
   }
+
+  /* Hide scrollbars globally (while keeping potential internal scroll behavior) */
+  * {
+    scrollbar-width: none; /* Firefox */
+  }
+  *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
 }
