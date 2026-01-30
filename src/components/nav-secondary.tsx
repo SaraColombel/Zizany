@@ -37,6 +37,15 @@ import {
   DrawerFooter,
 } from "@/components/ui/drawer"
 
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet"
+
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 
@@ -84,6 +93,11 @@ export function NavSecondary({
   const [openCreate, setOpenCreate] = React.useState(false)
 
   /**
+   * Join server sheet state
+   */
+  const [openJoin, setOpenJoin] = React.useState(false)
+
+  /**
    * Form state (fully controlled, ready for backend)
    */
   const [name, setName] = React.useState("")
@@ -104,11 +118,27 @@ export function NavSecondary({
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   /**
+   * Join server state
+   */
+  const [inviteLink, setInviteLink] = React.useState("")
+  const [joinError, setJoinError] = React.useState<string | null>(null)
+  const [joinSuccess, setJoinSuccess] = React.useState<string | null>(null)
+  const [isJoining, setIsJoining] = React.useState(false)
+
+  /**
    * Temporary detection logic for the "Create server" menu item.
    * Can be replaced by an explicit flag in NavItem later.
    */
   const isCreateItem = (item: NavItem) =>
     item.title.toLowerCase().includes("create") &&
+    item.title.toLowerCase().includes("server")
+
+  /**
+   * Temporary detection logic for the "Join a server" menu item.
+   * Can be replaced by an explicit flag in NavItem later.
+   */
+  const isJoinItem = (item: NavItem) =>
+    item.title.toLowerCase().includes("join") &&
     item.title.toLowerCase().includes("server")
 
   /**
@@ -121,6 +151,15 @@ export function NavSecondary({
     setThumbnailFile(null)
     setApiError(null)
     setSuccessMsg(null)
+  }
+
+  /**
+   * Reset join server UI state.
+   */
+  function resetJoinForm() {
+    setInviteLink("")
+    setJoinError(null)
+    setJoinSuccess(null)
   }
 
   /**
@@ -175,6 +214,29 @@ export function NavSecondary({
     !bannerError &&
     !thumbnailError &&
     !isSubmitting
+
+  /**
+   * Simple URL validation helper for invite links.
+   */
+  function isValidUrl(value: string) {
+    try {
+      // eslint-disable-next-line no-new
+      new URL(value)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const trimmedInvite = inviteLink.trim()
+  const inviteError =
+    trimmedInvite.length === 0
+      ? "Invitation link is required"
+      : !isValidUrl(trimmedInvite)
+        ? "Please enter a valid URL"
+        : null
+
+  const canJoin = !inviteError && !isJoining
 
   /**
    * Create server handler.
@@ -245,6 +307,43 @@ export function NavSecondary({
     }
   }
 
+  /**
+   * Join server handler.
+   *
+   * Current behavior:
+   * - validates the invite link
+   * - shows a success message
+   *
+   * Backend (future):
+   * - will POST the invite link to an endpoint like:
+   *   POST /api/servers/join
+   *   { invite: string }
+   */
+  async function onJoin() {
+    setJoinError(null)
+    setJoinSuccess(null)
+
+    if (!canJoin) return
+
+    try {
+      setIsJoining(true)
+
+      /**
+       * Placeholder for future backend call.
+       * Kept async to make wiring the real fetch() trivial.
+       */
+      await new Promise((resolve) => setTimeout(resolve, 400))
+
+      setJoinSuccess("Invitation link accepted. Backend integration pending.")
+      // We intentionally keep the sheet open so the user
+      // can still see the link and the success message.
+    } catch {
+      setJoinError("Join failed (backend not connected yet)")
+    } finally {
+      setIsJoining(false)
+    }
+  }
+
   return (
     <>
       {/* Secondary navigation */}
@@ -254,11 +353,12 @@ export function NavSecondary({
             {items.map((item, index) => {
               const isActive = index === activeIndex
               const isCreate = isCreateItem(item)
+              const isJoin = isJoinItem(item)
 
               return (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
-                    asChild={!isCreate}
+                    asChild={!isCreate && !isJoin}
                     isActive={isActive}
                     onClick={
                       isCreate
@@ -267,11 +367,17 @@ export function NavSecondary({
                             setSuccessMsg(null)
                             setOpenCreate(true)
                           }
+                        : isJoin
+                          ? () => {
+                              setJoinError(null)
+                              setJoinSuccess(null)
+                              setOpenJoin(true)
+                            }
                         : undefined
                     }
                     className="cursor-pointer"
                   >
-                    {isCreate ? (
+                    {isCreate || isJoin ? (
                       <>
                         <item.icon />
                         <span>{item.title}</span>
@@ -414,6 +520,81 @@ export function NavSecondary({
           </div>
         </DrawerContent>
       </Drawer>
+
+      {/* Join server sheet */}
+      <Sheet
+        open={openJoin}
+        onOpenChange={(v) => {
+          setOpenJoin(v)
+          if (!v) resetJoinForm()
+        }}
+      >
+        <SheetContent side="bottom">
+          <SheetHeader>
+            <SheetTitle>Join a server</SheetTitle>
+            <SheetDescription>
+              Paste the invitation link of the server you want to join. The link
+              will be sent to the backend once integration is ready.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex flex-col gap-3 px-4">
+            {/* Success feedback (backend-ready) */}
+            {joinSuccess && (
+              <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600">
+                {joinSuccess}
+              </div>
+            )}
+
+            {/* Error feedback */}
+            {joinError && (
+              <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+                {joinError}
+              </div>
+            )}
+
+            {/* Invitation link input */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">
+                Invitation link
+              </label>
+              <Input
+                value={inviteLink}
+                onChange={(e) => setInviteLink(e.target.value)}
+                placeholder="https://example.com/invite/..."
+              />
+              {inviteError && (
+                <span className="text-xs text-red-500">{inviteError}</span>
+              )}
+            </div>
+          </div>
+
+          <SheetFooter>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                type="button"
+                className="cursor-pointer"
+                onClick={() => {
+                  setOpenJoin(false)
+                  resetJoinForm()
+                }}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                type="button"
+                onClick={onJoin}
+                disabled={!canJoin}
+                className="cursor-pointer"
+              >
+                {isJoining ? "Joining..." : "Join"}
+              </Button>
+            </div>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </>
   )
 }
