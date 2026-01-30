@@ -24,18 +24,26 @@ import {
   IconList,
   IconPencil,
 } from "@tabler/icons-react"
+import dynamic from "next/dynamic"
 
 import { useServers } from "@/components/servers-context"
 
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
-import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
 } from "@/components/ui/sidebar"
+
+// NavUser uses Radix dropdown + sidebar menu button.
+// Rendering it only on the client avoids occasional
+// SSR/CSR id mismatches (hydration warnings) in dev.
+const NavUser = dynamic(
+  () => import("@/components/nav-user").then((m) => m.NavUser),
+  { ssr: false }
+)
 
 /**
  * Server type as exposed to the UI.
