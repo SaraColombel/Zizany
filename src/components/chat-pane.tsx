@@ -30,23 +30,88 @@ export function ChatPane({
   serverId: string
   channelId: string
 }) {
-  /**
-   * In-memory message list.
-   * This state will later be fed by:
-   * - optimistic messages (on send)
-   * - socket events (message:new)
-   * - REST history (future)
-   */
   const [messages, setMessages] = React.useState<UiMessage[]>([])
 
-  /**
-   * Loading / error states are kept on purpose,
-   * even if unused for now, to keep the component API stable
-   * when backend integration starts.
-   */
+
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [channelName, setChannelName] = React.useState<string | null>(null)
+
+  /**
+   * Initial load of messages for the channel.
+   *
+   * Backend route used:
+   *   GET /api/channels/:channelId/messages
+   */
+  React.useEffect(() => {
+    let cancelled = false
+
+    async function loadMessages() {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const res = await fetch(
+          `http://localhost:4000/api/channels/${channelId}/messages`,
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`)
+        }
+
+        const json = await res.json()
+        const rawMessages: any[] = json.messages ?? []
+
+        const mapped: UiMessage[] = rawMessages
+          .map((raw) => {
+            const base = raw && raw.props ? raw.props : raw
+            if (!base) return null
+
+            // MessageDTO shape from backend:
+            // {
+            //   id, channel_id, content, created_at, updated_at,
+            //   user: { id, username }
+            // }
+            const username =
+              base.user && typeof base.user.username === "string"
+                ? base.user.username
+                : `User ${base.user_id}`
+
+            return {
+              id: String(base.id),
+              authorName: username,
+              content: String(base.content ?? ""),
+              createdAt: String(base.created_at ?? new Date().toISOString()),
+            } as UiMessage
+          })
+          .filter((m: UiMessage | null): m is UiMessage => m !== null)
+
+        if (!cancelled) {
+          setMessages(mapped)
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(
+            e instanceof Error
+              ? e.message
+              : "Failed to load messages"
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadMessages()
+    return () => {
+      cancelled = true
+    }
+  }, [channelId])
 
   /**
    * Load channel metadata (name) so we can display it
