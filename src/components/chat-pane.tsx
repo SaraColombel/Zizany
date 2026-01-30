@@ -46,6 +46,55 @@ export function ChatPane({
    */
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [channelName, setChannelName] = React.useState<string | null>(null)
+
+  /**
+   * Load channel metadata (name) so we can display it
+   * instead of the raw channel id.
+   *
+   * Uses the same /api/servers/:id/channels endpoint as the sidebar
+   * and is resilient to the backend returning either domain entities
+   * ({ props: { ... } }) or plain objects.
+   */
+  React.useEffect(() => {
+    let cancelled = false
+
+    async function loadChannel() {
+      try {
+        const res = await fetch(
+          `http://localhost:4000/api/servers/${serverId}/channels`,
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+        const json = await res.json()
+        const numericId = Number(channelId)
+
+        const match = (json.channels ?? []).find((raw: any) => {
+          const base = raw && raw.props ? raw.props : raw
+          return Number(base?.id) === numericId
+        })
+
+        if (!cancelled && match) {
+          const base = match.props ? match.props : match
+          setChannelName(String(base.name ?? `#${channelId}`))
+        }
+      } catch {
+        if (!cancelled) {
+          // Keep a graceful fallback; header will show the id.
+          setChannelName(null)
+        }
+      }
+    }
+
+    loadChannel()
+    return () => {
+      cancelled = true
+    }
+  }, [serverId, channelId])
 
   /**
    * Send handler called by MessageComposer.
@@ -121,9 +170,9 @@ export function ChatPane({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Channel header (purely informational for now) */}
+      {/* Channel header */}
       <div className="border-b px-4 py-3 text-sm">
-        Channel {channelId}
+        {channelName ?? channelId}
       </div>
 
       {/* Message list */}
