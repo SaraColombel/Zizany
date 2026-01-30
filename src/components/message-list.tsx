@@ -1,3 +1,4 @@
+import * as React from "react"
 import { MoreHorizontal } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -71,7 +72,7 @@ export function MessageList({
    * Optional callbacks.
    * If provided, the message action menu is enabled.
    */
-  onEdit?: (message: UiMessage) => void
+  onEdit?: (message: UiMessage, nextContent: string) => void
   onDelete?: (message: UiMessage) => void
 }) {
   /**
@@ -113,6 +114,35 @@ export function MessageList({
    */
   const hasMenu = !!onEdit || !!onDelete
 
+  const [editingId, setEditingId] = React.useState<string | null>(null)
+  const [draft, setDraft] = React.useState("")
+
+  function startEditing(message: UiMessage) {
+    setEditingId(message.id)
+    setDraft(message.content)
+  }
+
+  function cancelEditing() {
+    setEditingId(null)
+    setDraft("")
+  }
+
+  function commitEditing(target: UiMessage) {
+    if (!onEdit) {
+      cancelEditing()
+      return
+    }
+
+    const trimmed = draft.trim()
+    if (!trimmed || trimmed === target.content) {
+      cancelEditing()
+      return
+    }
+
+    onEdit(target, trimmed)
+    cancelEditing()
+  }
+
   return (
     <div className="flex flex-col gap-2 p-4">
       {messages.map((m) => (
@@ -152,7 +182,7 @@ export function MessageList({
                     {onEdit && (
                       <DropdownMenuItem
                         className="cursor-pointer"
-                        onSelect={() => onEdit(m)}
+                        onSelect={() => startEditing(m)}
                       >
                         Modify
                       </DropdownMenuItem>
@@ -174,10 +204,45 @@ export function MessageList({
             </div>
           </div>
 
-          {/* Message content */}
-          <div className="text-sm">
-            {m.content}
-          </div>
+          {/* Message content / inline editor */}
+          {editingId === m.id ? (
+            <div className="mt-1 space-y-2">
+              <input
+                className="w-full rounded border px-2 py-1 text-sm bg-background"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    commitEditing(m)
+                  } else if (e.key === "Escape") {
+                    cancelEditing()
+                  }
+                }}
+                autoFocus
+              />
+              <div className="flex gap-2 text-xs">
+                <Button
+                  size="sm"
+                  className="h-7 px-3 cursor-pointer"
+                  onClick={() => commitEditing(m)}
+                >
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-3 cursor-pointer"
+                  onClick={cancelEditing}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm">
+              {m.content}
+            </div>
+          )}
         </div>
       ))}
     </div>

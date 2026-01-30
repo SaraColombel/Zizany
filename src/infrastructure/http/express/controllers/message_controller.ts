@@ -6,7 +6,7 @@ export class MessageController {
     async all(req: Request, res: Response, next: NextFunction) {
         try {
             // GET /api/channels/:id/messages
-            const channelId = parseInt(req.params.id[0]);
+            const channelId = Number(req.params.id);
             const messages = await new PrismaMessageRepository().get_by_channel(channelId);
             return res.json({
                 messages,
@@ -18,7 +18,7 @@ export class MessageController {
     }
     async index(req: Request, res: Response, next: NextFunction) {
         try {
-            const messageId = parseInt(req.params.id[0]);
+            const messageId = Number(req.params.id);
 
             const message = await new PrismaMessageRepository().find_by_id(messageId);
             return res.json({
@@ -33,7 +33,7 @@ export class MessageController {
     async create(req: Request, res: Response, next: NextFunction) {
         try {
             // POST /api/channels/:id/messages
-            const channelId = parseInt(req.params.id[0]);
+            const channelId = Number(req.params.id);
             const { content, authorId } = req.body;
             if (!content || typeof content !== "string") {
                 return res.status(400).json({ message: "content is required" })
@@ -60,7 +60,7 @@ export class MessageController {
     async delete(req: Request, res: Response, next: NextFunction) {
         try {
             // DELETE /api/channels/:channelId/messages/:messageId
-            const messageId = parseInt(req.params.messageId[0]);
+            const messageId = Number(req.params.messageId);
 
             if (!Number.isFinite(messageId)) {
                 return res.status(400).json({ message: "Invalid message id" });
@@ -83,7 +83,7 @@ export class MessageController {
 
     async update(req: Request, res: Response, next: NextFunction) {
         try {
-            const messageId = parseInt(req.params.messageId[0]);
+            const messageId = Number(req.params.messageId);
             const { content } = req.body;
 
             if (!Number.isFinite(messageId)) {

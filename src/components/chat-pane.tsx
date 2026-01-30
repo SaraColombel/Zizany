@@ -26,9 +26,16 @@ import { MessageComposer } from "./message-composer"
 export function ChatPane({
   serverId,
   channelId,
+  currentUserName,
 }: {
   serverId: string
   channelId: string
+  /**
+   * Display name for the currently connected user.
+   * For now, this is a simple prop so that wiring
+   * real auth later is straightforward.
+   */
+  currentUserName?: string
 }) {
   const [messages, setMessages] = React.useState<UiMessage[]>([])
 
@@ -187,9 +194,13 @@ export function ChatPane({
     // Create a temporary optimistic message id so we can update status later.
     const tempId = crypto.randomUUID()
 
+    // Use the provided currentUserName when available,
+    // otherwise fall back to a neutral label.
+    const effectiveUserName = currentUserName ?? "You"
+
     const optimistic: UiMessage = {
       id: tempId,
-      authorName: "You",
+      authorName: effectiveUserName,
       content,
       createdAt: new Date().toISOString(),
 
@@ -242,11 +253,8 @@ export function ChatPane({
    * - check permissions (backend)
    * - emit socket / REST update
    */
-  async function handleEditMessage(message: UiMessage) {
-    const next = window.prompt("Edit message:", message.content)
-    if (next == null) return
-
-    const trimmed = next.trim();
+  async function handleEditMessage(message: UiMessage, nextContent: string) {
+    const trimmed = nextContent.trim();
     if (!trimmed || trimmed === message.content) return;
 
     setMessages((prev) =>

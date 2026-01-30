@@ -7,5 +7,13 @@ export default async function ChannelPage({
     }) {
     const { serverId, channelId } = await params
 
-    return <ChatPane serverId={serverId} channelId={channelId} />
+    // TODO: when auth is implemented, replace this hard-coded
+    // username with the logged-in user's username.
+    return (
+      <ChatPane
+        serverId={serverId}
+        channelId={channelId}
+        currentUserName="sarac"
+      />
+    )
 }
