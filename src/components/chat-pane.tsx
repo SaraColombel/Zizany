@@ -245,6 +245,7 @@ export function ChatPane({
     const trimmed = nextContent.trim();
     if (!trimmed || trimmed === message.content) return;
 
+    // Optimistic update in UI
     setMessages((prev) =>
       prev.map((m) =>
         m.id === message.id
@@ -253,10 +254,51 @@ export function ChatPane({
               content: trimmed,
               isOptimistic: true,
               isFailed: false,
+              isEdited: true,
             }
           : m,
       ),
     );
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/messages/${message.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: trimmed }),
+          credentials: "include",
+        },
+      );
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      // Mark as successfully synced with backend
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === message.id
+            ? { ...m, isOptimistic: false, isEdited: true, isFailed: false }
+            : m,
+        ),
+      );
+    } catch {
+      // Revert content and flag as failed
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === message.id
+            ? {
+                ...m,
+                content: message.content,
+                isOptimistic: false,
+                isFailed: true,
+                isEdited: message.isEdited ?? false,
+              }
+            : m,
+        ),
+      );
+    }
   }
 
   /**
