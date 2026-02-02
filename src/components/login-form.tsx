@@ -4,22 +4,22 @@ import * as React from "react";
 import { useForm } from "react-hook-form";
 // ------
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
 // useForm : Define the shape of the form data
 type LoginValues = {
@@ -45,14 +45,19 @@ export function LoginForm({
 
   async function onSubmit(values: LoginValues) {
     setApiError(null);
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(values),
-    });
+    const url = process.env.NEXT_PUBLIC_API_URL;
+    console.log(url);
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(values),
+      },
+    );
 
-        if (!res.ok) {
+    if (!res.ok) {
       try {
         const data = await res.json();
         setApiError(data?.error?.message ?? "Login failed");
@@ -76,10 +81,9 @@ export function LoginForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-
           {/* HERE useForm */}
           <form onSubmit={handleSubmit(onSubmit)}>
-          {/* ---------- */}
+            {/* ---------- */}
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -155,5 +159,5 @@ export function LoginForm({
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

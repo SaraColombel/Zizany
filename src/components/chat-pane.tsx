@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { MessageList, UiMessage } from "./message-list"
-import { MessageComposer } from "./message-composer"
+import * as React from "react";
+import { MessageList, UiMessage } from "./message-list";
+import { MessageComposer } from "./message-composer";
 
 /**
  * ChatPane
@@ -28,21 +28,20 @@ export function ChatPane({
   channelId,
   currentUserName,
 }: {
-  serverId: string
-  channelId: string
+  serverId: string;
+  channelId: string;
   /**
    * Display name for the currently connected user.
    * For now, this is a simple prop so that wiring
    * real auth later is straightforward.
    */
-  currentUserName?: string
+  currentUserName?: string;
 }) {
-  const [messages, setMessages] = React.useState<UiMessage[]>([])
+  const [messages, setMessages] = React.useState<UiMessage[]>([]);
 
-
-  const [loading, setLoading] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const [channelName, setChannelName] = React.useState<string | null>(null)
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [channelName, setChannelName] = React.useState<string | null>(null);
 
   /**
    * Initial load of messages for the channel.
@@ -51,40 +50,38 @@ export function ChatPane({
    *   GET /api/channels/:channelId/messages
    */
   React.useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
 
     async function loadMessages() {
       try {
-        setLoading(true)
-        setError(null)
+        setLoading(true);
+        setError(null);
 
         const res = await fetch(
           `http://localhost:4000/api/channels/${channelId}/messages`,
           {
             headers: { "Content-Type": "application/json" },
-          }
-        )
+          },
+        );
 
         if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`)
+          throw new Error(`HTTP ${res.status}`);
         }
 
-        const json = await res.json()
-        const rawMessages: any[] = json.messages ?? []
+        const json = await res.json();
+        const rawMessages: any[] = json.messages ?? [];
 
         const mapped: UiMessage[] = rawMessages
           .map((raw) => {
-            const base = raw && raw.props ? raw.props : raw
-            if (!base) return null
+            const base = raw && raw.props ? raw.props : raw;
+            if (!base) return null;
 
             const createdAt =
               typeof base.created_at === "string"
                 ? base.created_at
-                : new Date().toISOString()
+                : new Date().toISOString();
             const updatedAt =
-              typeof base.updated_at === "string"
-                ? base.updated_at
-                : createdAt
+              typeof base.updated_at === "string" ? base.updated_at : createdAt;
 
             // MessageDTO shape from backend:
             // {
@@ -94,7 +91,7 @@ export function ChatPane({
             const username =
               base.user && typeof base.user.username === "string"
                 ? base.user.username
-                : `User ${base.user_id}`
+                : `User ${base.user_id}`;
 
             return {
               id: String(base.id),
@@ -102,33 +99,29 @@ export function ChatPane({
               content: String(base.content ?? ""),
               createdAt,
               isEdited: createdAt !== updatedAt,
-            } as UiMessage
+            } as UiMessage;
           })
-          .filter((m: UiMessage | null): m is UiMessage => m !== null)
+          .filter((m: UiMessage | null): m is UiMessage => m !== null);
 
         if (!cancelled) {
-          setMessages(mapped)
+          setMessages(mapped);
         }
       } catch (e) {
         if (!cancelled) {
-          setError(
-            e instanceof Error
-              ? e.message
-              : "Failed to load messages"
-          )
+          setError(e instanceof Error ? e.message : "Failed to load messages");
         }
       } finally {
         if (!cancelled) {
-          setLoading(false)
+          setLoading(false);
         }
       }
     }
 
-    loadMessages()
+    loadMessages();
     return () => {
-      cancelled = true
-    }
-  }, [channelId])
+      cancelled = true;
+    };
+  }, [channelId]);
 
   /**
    * Load channel metadata (name) so we can display it
@@ -139,44 +132,45 @@ export function ChatPane({
    * ({ props: { ... } }) or plain objects.
    */
   React.useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
 
     async function loadChannel() {
       try {
         const res = await fetch(
-          `http://localhost:4000/api/servers/${serverId}/channels`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/servers/${serverId}/channels`,
           {
             headers: { "Content-Type": "application/json" },
-          }
-        )
+            credentials: "include",
+          },
+        );
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        const json = await res.json()
-        const numericId = Number(channelId)
+        const json = await res.json();
+        const numericId = Number(channelId);
 
         const match = (json.channels ?? []).find((raw: any) => {
-          const base = raw && raw.props ? raw.props : raw
-          return Number(base?.id) === numericId
-        })
+          const base = raw && raw.props ? raw.props : raw;
+          return Number(base?.id) === numericId;
+        });
 
         if (!cancelled && match) {
-          const base = match.props ? match.props : match
-          setChannelName(String(base.name ?? `#${channelId}`))
+          const base = match.props ? match.props : match;
+          setChannelName(String(base.name ?? `#${channelId}`));
         }
       } catch {
         if (!cancelled) {
           // Keep a graceful fallback; header will show the id.
-          setChannelName(null)
+          setChannelName(null);
         }
       }
     }
 
-    loadChannel()
+    loadChannel();
     return () => {
-      cancelled = true
-    }
-  }, [serverId, channelId])
+      cancelled = true;
+    };
+  }, [serverId, channelId]);
 
   /**
    * Send handler called by MessageComposer.
@@ -192,11 +186,11 @@ export function ChatPane({
    */
   async function handleSend(content: string) {
     // Create a temporary optimistic message id so we can update status later.
-    const tempId = crypto.randomUUID()
+    const tempId = crypto.randomUUID();
 
     // Use the provided currentUserName when available,
     // otherwise fall back to a neutral label.
-    const effectiveUserName = currentUserName ?? "You"
+    const effectiveUserName = currentUserName ?? "You";
 
     const optimistic: UiMessage = {
       id: tempId,
@@ -206,10 +200,9 @@ export function ChatPane({
 
       // Client-only flags (must never be stored in DB)
       isOptimistic: true,
-      isEdited: false,
-    }
+    };
 
-    setMessages((prev) => [...prev, optimistic])
+    setMessages((prev) => [...prev, optimistic]);
 
     try {
       const res = await fetch(
@@ -218,30 +211,24 @@ export function ChatPane({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content }),
-        }
-      )
+        },
+      );
 
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`)
+        throw new Error(`HTTP ${res.status}`);
       }
 
       // Mark the optimistic message as successfully sent.
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === tempId
-            ? { ...m, isOptimistic: false }
-            : m
-        )
-      )
+        prev.map((m) => (m.id === tempId ? { ...m, isOptimistic: false } : m)),
+      );
     } catch {
       // Mark the optimistic message as failed.
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === tempId
-            ? { ...m, isOptimistic: false, isFailed: true }
-            : m
-        )
-      )
+          m.id === tempId ? { ...m, isOptimistic: false, isFailed: true } : m,
+        ),
+      );
     }
   }
 
@@ -266,57 +253,9 @@ export function ChatPane({
               isOptimistic: true,
               isFailed: false,
             }
-          : m
-      )
+          : m,
+      ),
     );
-    const numericId = Number(message.id);
-
-    if (!Number.isFinite(numericId)) {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === message.id ? { ...m, isOptimistic: false } : m
-        )
-      );
-    return;
-    }
-
-    try {
-      const res = await fetch(
-        `http://localhost:4000/api/channels/${channelId}/messages/${numericId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: trimmed }),
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === message.id
-            ? { ...m, isOptimistic: false, isEdited: true }
-            : m
-        )
-      );
-    } catch (e) {
-      console.error(e);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === message.id
-            ? {
-                ...m,
-                content: message.content,
-                isOptimistic: false,
-                isFailed: true,
-              }
-            : m
-        )
-      );
-      window.alert("Failed to update message (backend error).");
-    }
   }
 
   /**
@@ -329,34 +268,8 @@ export function ChatPane({
    * Permissions (who can delete what) are expected to be enforced
    * server-side later (owner / admin / author).
    */
-  async function handleDeleteMessage(message: UiMessage) {
-    // If this is a purely optimistic (local-only) message or the id is not numeric,
-    // we just remove it locally without calling the backend.
-    const numericId = Number(message.id)
-    if (!Number.isFinite(numericId)) {
-      setMessages((prev) => prev.filter((m) => m.id !== message.id))
-      return
-    }
-
-    try {
-      const res = await fetch(
-        `http://localhost:4000/api/channels/${channelId}/messages/${message.id}`,
-        {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-        }
-      )
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`)
-      }
-
-      setMessages((prev) => prev.filter((m) => m.id !== message.id))
-    } catch (e) {
-      // Keep the message in the UI for now and just notify the user.
-      console.error(e)
-      window.alert("Failed to delete message (backend error).")
-    }
+  function handleDeleteMessage(message: UiMessage) {
+    setMessages((prev) => prev.filter((m) => m.id !== message.id));
   }
 
   return (
@@ -379,11 +292,8 @@ export function ChatPane({
 
       {/* Message composer */}
       <div className="border-t p-3">
-        <MessageComposer
-          onSend={handleSend}
-          disabled={!!error}
-        />
+        <MessageComposer onSend={handleSend} disabled={!!error} />
       </div>
     </div>
-  )
+  );
 }
