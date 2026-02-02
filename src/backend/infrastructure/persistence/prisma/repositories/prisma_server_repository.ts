@@ -30,8 +30,8 @@ export class PrismaServerRepository extends ServerRepository {
     return data.map((server) => PrismaServerMapper.toDomain(server));
   }
 
-  async save(payload: ServerProperties): Promise<void> {
-    await prisma.servers.create({
+  async save(payload: Omit<ServerProperties, "id">): Promise<Server> {
+    const data = await prisma.servers.create({
       data: {
         name: payload.name,
         owner_id: payload.owner_id,
@@ -39,6 +39,8 @@ export class PrismaServerRepository extends ServerRepository {
         banner: payload.banner,
       },
     });
-    return;
+    return PrismaServerMapper.toDomain(data);
   }
+
+
 }

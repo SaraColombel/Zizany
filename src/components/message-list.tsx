@@ -19,6 +19,7 @@ import {
  */
 export type UiMessage = {
   id: string
+  authorId?: string | number
   authorName: string
   content: string
   createdAt: string
@@ -63,6 +64,9 @@ export function MessageList({
   error,
   onEdit,
   onDelete,
+  currentUserId,
+  currentUserName,
+  canModerateOthers = false,
 }: {
   messages: UiMessage[]
   loading: boolean
@@ -74,7 +78,34 @@ export function MessageList({
    */
   onEdit?: (message: UiMessage, nextContent: string) => void
   onDelete?: (message: UiMessage) => void
+
+  /**
+   * Current user context for permission checks.
+   */
+  currentUserId?: string | number
+  currentUserName?: string
+
+  /**
+   * True when the viewer can act on others' messages (admin/owner).
+   */
+  canModerateOthers?: boolean
 }) {
+  const [editingId, setEditingId] = React.useState<string | null>(null)
+  const [draft, setDraft] = React.useState("")
+
+  const isOwnMessage = React.useCallback(
+    (msg: UiMessage) => {
+      if (msg.authorId != null && currentUserId != null) {
+        return String(msg.authorId) === String(currentUserId)
+      }
+      if (currentUserName) {
+        return msg.authorName === currentUserName
+      }
+      return false
+    },
+    [currentUserId, currentUserName],
+  )
+
   /**
    * Loading state while fetching message history.
    */
@@ -112,11 +143,6 @@ export function MessageList({
    * Enable the dropdown menu only if at least one action exists.
    * This allows reuse of the component in read-only contexts.
    */
-  const hasMenu = !!onEdit || !!onDelete
-
-  const [editingId, setEditingId] = React.useState<string | null>(null)
-  const [draft, setDraft] = React.useState("")
-
   function startEditing(message: UiMessage) {
     setEditingId(message.id)
     setDraft(message.content)
@@ -147,6 +173,9 @@ export function MessageList({
     <div className="flex flex-col gap-2 p-4">
       {messages.map((m) => {
         const createdAt = new Date(m.createdAt)
+        const canEdit = !!onEdit && (isOwnMessage(m) || canModerateOthers)
+        const canDelete = !!onDelete && (isOwnMessage(m) || canModerateOthers)
+        const showMenu = canEdit || canDelete
 
         return (
           <div
@@ -172,7 +201,7 @@ export function MessageList({
                 </span>
 
                 {/* Message actions menu (edit / delete) */}
-                {hasMenu && (
+                {showMenu && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -187,7 +216,7 @@ export function MessageList({
 
                     <DropdownMenuContent align="end">
                       {/* Edit action (if enabled) */}
-                      {onEdit && (
+                      {canEdit && (
                         <DropdownMenuItem
                           className="cursor-pointer"
                           onSelect={() => startEditing(m)}
@@ -197,11 +226,11 @@ export function MessageList({
                       )}
 
                       {/* Delete action (if enabled) */}
-                      {onDelete && (
+                      {canDelete && (
                         <DropdownMenuItem
                           variant="destructive"
                           className="cursor-pointer"
-                          onSelect={() => onDelete(m)}
+                          onSelect={() => onDelete?.(m)}
                         >
                           Delete
                         </DropdownMenuItem>

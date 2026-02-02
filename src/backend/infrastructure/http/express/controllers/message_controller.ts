@@ -34,11 +34,14 @@ export class MessageController {
         try {
             // POST /api/channels/:id/messages
             const channelId = Number(req.params.id);
-            const { content, authorId } = req.body;
+            const { content } = req.body;
             if (!content || typeof content !== "string") {
                 return res.status(400).json({ message: "content is required" })
             }
-            const userId = 1
+            const userId = req.session.user_id;
+            if (!userId) {
+                return res.status(401).json({ message: "Unauthorized" })
+            }
 
             await new PrismaMessageRepository().save({
                 channel_id: channelId,

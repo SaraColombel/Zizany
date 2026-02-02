@@ -15,6 +15,7 @@ router.get("/:id/channels", channelController.all);
 router.post("/:id/channels", channelController.create);
 router.put("/:id/channels/:channelId", channelController.update);
 router.delete("/:id/channels/:channelId", channelController.delete);
+router.post("/", serverController.save);
 
 
 export default router;

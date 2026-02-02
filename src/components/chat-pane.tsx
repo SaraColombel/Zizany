@@ -4,6 +4,17 @@ import * as React from "react";
 import { MessageList, UiMessage } from "./message-list";
 import { MessageComposer } from "./message-composer";
 
+type ApiMessage = {
+  id?: number | string;
+  channel_id?: number | string;
+  user_id?: number | string;
+  content?: string;
+  created_at?: string;
+  updated_at?: string;
+  user?: { id?: number | string; username?: string };
+  props?: ApiMessage;
+};
+
 /**
  * ChatPane
  * --------
@@ -23,6 +34,8 @@ export function ChatPane({
   serverId,
   channelId,
   currentUserName,
+  currentUserId,
+  canModerateOthers = false,
 }: {
   serverId: string;
   channelId: string;
@@ -32,6 +45,14 @@ export function ChatPane({
    * authentication can be plugged in later.
    */
   currentUserName?: string;
+  /**
+   * Identifier of the current user (for ownership checks).
+   */
+  currentUserId?: string | number;
+  /**
+   * Whether the user can edit/delete messages from others (admin/owner).
+   */
+  canModerateOthers?: boolean;
 }) {
   const [messages, setMessages] = React.useState<UiMessage[]>([]);
 
@@ -66,10 +87,10 @@ export function ChatPane({
         }
 
         const json = await res.json();
-        const rawMessages: any[] = json.messages ?? [];
+        const rawMessages: ApiMessage[] = json.messages ?? [];
 
         const mapped: UiMessage[] = rawMessages
-          .map((raw) => {
+          .map((raw: ApiMessage) => {
             const base = raw && raw.props ? raw.props : raw;
             if (!base) return null;
 
@@ -92,6 +113,10 @@ export function ChatPane({
 
             return {
               id: String(base.id),
+              authorId:
+                base.user && typeof base.user.id !== "undefined"
+                  ? base.user.id
+                  : base.user_id,
               authorName: username,
               content: String(base.content ?? ""),
               createdAt,
@@ -146,10 +171,12 @@ export function ChatPane({
         const json = await res.json();
         const numericId = Number(channelId);
 
-        const match = (json.channels ?? []).find((raw: any) => {
-          const base = raw && raw.props ? raw.props : raw;
-          return Number(base?.id) === numericId;
-        });
+        const match = (json.channels ?? []).find(
+          (raw: { id?: number | string; props?: { id?: number | string } }) => {
+            const base = raw && raw.props ? raw.props : raw;
+            return Number(base?.id) === numericId;
+          },
+        );
 
         if (!cancelled && match) {
           const base = match.props ? match.props : match;
@@ -191,6 +218,7 @@ export function ChatPane({
 
     const optimistic: UiMessage = {
       id: tempId,
+      authorId: currentUserId,
       authorName: effectiveUserName,
       content,
       createdAt: new Date().toISOString(),
@@ -330,6 +358,9 @@ export function ChatPane({
           error={error}
           onEdit={handleEditMessage}
           onDelete={handleDeleteMessage}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+          canModerateOthers={canModerateOthers}
         />
       </div>
 

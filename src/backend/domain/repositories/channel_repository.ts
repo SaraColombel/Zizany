@@ -6,4 +6,6 @@ export abstract class ChannelRepository {
   abstract get_by_server_id(server_id: number): Promise<Channel[]>;
   abstract get_by_name(name: string): Promise<Channel | undefined>;
   abstract save(payload: ChannelProperties): Promise<Channel>;
+  abstract delete(id: number): Promise<void>;
+  abstract update(id: number, payload: Partial<ChannelProperties>): Promise<void>;
 }

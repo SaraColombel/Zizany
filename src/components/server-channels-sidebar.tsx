@@ -47,12 +47,9 @@ type ServerChannelsSidebarProps = {
 
 export function ServerChannelsSidebar({
   serverId,
-
-  // true = you are admin view / false = member view
-  canManageChannels = true,
+  canManageChannels,
 }: ServerChannelsSidebarProps) {
   const pathname = usePathname();
-
   // Channels list and fetch status.
   const [channels, setChannels] = React.useState<Channel[]>([]);
   const [error, setError] = React.useState<string | null>(null);
