@@ -79,7 +79,7 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
                 if (!trimmed) return;
 
                 const channel = await prisma.channels.findUnique({ where: { id: channelId } });
-                if (!trimmed) return socket.emit("error:not_found", { code: "E_CHANNEL_NOT_FOUND" });
+                if (!channel) return socket.emit("error:not_found", { code: "E_CHANNEL_NOT_FOUND" });
 
                 const membership = await prisma.memberships.findFirst({
                     where: { server_id: channel.server_id, user_id: userId },

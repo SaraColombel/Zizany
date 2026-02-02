@@ -3,6 +3,7 @@
 import * as React from "react";
 import { MessageList, UiMessage } from "./message-list";
 import { MessageComposer } from "./message-composer";
+import { io, type Socket } from "socket.io-client";
 
 /**
  * ChatPane
@@ -42,6 +43,8 @@ export function ChatPane({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [channelName, setChannelName] = React.useState<string | null>(null);
+
+  const socketRef = React.useRef<Socket | null>(null);
 
   /**
    * Initial load of messages for the channel.
@@ -172,6 +175,39 @@ export function ChatPane({
     };
   }, [serverId, channelId]);
 
+  React.useEffect(() => {
+    const socket = io(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000", {
+      withCredentials: true,
+    });
+
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      socket.emit("server:join", { serverId: Number(serverId) });
+      socket.emit("channel:join", { channelId: Number(channelId) });
+    });
+
+    socket.on("message:new", (msg:any) => {
+      const createdAt = msg.created_at;
+      const updatedAt = msg.updated_at;
+
+      const uiMsg: UiMessage = {
+        id: String(msg.id),
+        authorName: msg.user?.username ?? `User ${msg.user?.id}`,
+        content: String(msg.content ?? ""),
+        createdAt,
+        isEdited: createdAt !== updatedAt,
+      };
+
+      setMessages((prev) => [...prev, uiMsg]);
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [serverId, channelId]);
+
   /**
    * Send handler called by MessageComposer.
    *
@@ -204,31 +240,13 @@ export function ChatPane({
 
     setMessages((prev) => [...prev, optimistic]);
 
-    try {
-      const res = await fetch(
-        `http://localhost:4000/api/channels/${channelId}/messages`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content }),
-        },
-      );
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      // Mark the optimistic message as successfully sent.
+    const socket = socketRef.current;
+    if (socket?.connected) {
+      socket.emit("message:create", { channelId: Number(channelId), content });
       setMessages((prev) =>
-        prev.map((m) => (m.id === tempId ? { ...m, isOptimistic: false } : m)),
-      );
-    } catch {
-      // Mark the optimistic message as failed.
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === tempId ? { ...m, isOptimistic: false, isFailed: true } : m,
-        ),
-      );
+      prev.map((m) => (m.id === tempId ? { ...m, isOptimistic: false } : m)),
+    );
+    return;
     }
   }
 
