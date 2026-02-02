@@ -19,6 +19,7 @@ import {
  */
 export type UiMessage = {
   id: string
+  authorId?: string | number
   authorName: string
   content: string
   createdAt: string
@@ -63,6 +64,9 @@ export function MessageList({
   error,
   onEdit,
   onDelete,
+  currentUserId,
+  currentUserName,
+  canModerateOthers = false,
 }: {
   messages: UiMessage[]
   loading: boolean
@@ -74,7 +78,34 @@ export function MessageList({
    */
   onEdit?: (message: UiMessage, nextContent: string) => void
   onDelete?: (message: UiMessage) => void
+
+  /**
+   * Current user context for permission checks.
+   */
+  currentUserId?: string | number
+  currentUserName?: string
+
+  /**
+   * True when the viewer can act on others' messages (admin/owner).
+   */
+  canModerateOthers?: boolean
 }) {
+  const [editingId, setEditingId] = React.useState<string | null>(null)
+  const [draft, setDraft] = React.useState("")
+
+  const isOwnMessage = React.useCallback(
+    (msg: UiMessage) => {
+      if (msg.authorId != null && currentUserId != null) {
+        return String(msg.authorId) === String(currentUserId)
+      }
+      if (currentUserName) {
+        return msg.authorName === currentUserName
+      }
+      return false
+    },
+    [currentUserId, currentUserName],
+  )
+
   /**
    * Loading state while fetching message history.
    */
@@ -112,11 +143,6 @@ export function MessageList({
    * Enable the dropdown menu only if at least one action exists.
    * This allows reuse of the component in read-only contexts.
    */
-  const hasMenu = !!onEdit || !!onDelete
-
-  const [editingId, setEditingId] = React.useState<string | null>(null)
-  const [draft, setDraft] = React.useState("")
-
   function startEditing(message: UiMessage) {
     setEditingId(message.id)
     setDraft(message.content)
@@ -145,106 +171,118 @@ export function MessageList({
 
   return (
     <div className="flex flex-col gap-2 p-4">
-      {messages.map((m) => (
-        <div
-          key={m.id}
-          className="rounded-md border px-3 py-2"
-        >
-          {/* Message header: author, timestamp, status, actions */}
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{m.authorName}</span>
+      {messages.map((m) => {
+        const createdAt = new Date(m.createdAt)
+        const canEdit = !!onEdit && (isOwnMessage(m) || canModerateOthers)
+        const canDelete = !!onDelete && (isOwnMessage(m) || canModerateOthers)
+        const showMenu = canEdit || canDelete
 
-            <div className="flex items-center gap-2">
-              {/* Timestamp + client-side delivery status */}
-              <span>
-                {m.isEdited && "(edited) "}
-                {new Date(m.createdAt).toLocaleTimeString()}
-                {m.isOptimistic && " · sending…"}
-                {m.isFailed && " · failed"}
-              </span>
+        return (
+          <div
+            key={m.id}
+            className="rounded-md border px-3 py-2"
+          >
+            {/* Message header: author, timestamp, status, actions */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{m.authorName}</span>
 
-              {/* Message actions menu (edit / delete) */}
-              {hasMenu && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 p-0 cursor-pointer"
-                      aria-label="Message actions"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
+              <div className="flex items-center gap-2">
+                {/* Timestamp + client-side delivery status */}
+                <span>
+                  {m.isEdited && "(edited) "}
+                  {createdAt.toLocaleDateString()}
+                  {" "}
+                  {createdAt.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                  {m.isOptimistic && " · sending…"}
+                  {m.isFailed && " · failed"}
+                </span>
 
-                  <DropdownMenuContent align="end">
-                    {/* Edit action (if enabled) */}
-                    {onEdit && (
-                      <DropdownMenuItem
-                        className="cursor-pointer"
-                        onSelect={() => startEditing(m)}
+                {/* Message actions menu (edit / delete) */}
+                {showMenu && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 p-0 cursor-pointer"
+                        aria-label="Message actions"
                       >
-                        Modify
-                      </DropdownMenuItem>
-                    )}
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
 
-                    {/* Delete action (if enabled) */}
-                    {onDelete && (
-                      <DropdownMenuItem
-                        variant="destructive"
-                        className="cursor-pointer"
-                        onSelect={() => onDelete(m)}
-                      >
-                        Delete
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-          </div>
+                    <DropdownMenuContent align="end">
+                      {/* Edit action (if enabled) */}
+                      {canEdit && (
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onSelect={() => startEditing(m)}
+                        >
+                          Modify
+                        </DropdownMenuItem>
+                      )}
 
-          {/* Message content / inline editor */}
-          {editingId === m.id ? (
-            <div className="mt-1 space-y-2">
-              <input
-                className="w-full rounded border px-2 py-1 text-sm bg-background"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    commitEditing(m)
-                  } else if (e.key === "Escape") {
-                    cancelEditing()
-                  }
-                }}
-                autoFocus
-              />
-              <div className="flex gap-2 text-xs">
-                <Button
-                  size="sm"
-                  className="h-7 px-3 cursor-pointer"
-                  onClick={() => commitEditing(m)}
-                >
-                  Save
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-3 cursor-pointer"
-                  onClick={cancelEditing}
-                >
-                  Cancel
-                </Button>
+                      {/* Delete action (if enabled) */}
+                      {canDelete && (
+                        <DropdownMenuItem
+                          variant="destructive"
+                          className="cursor-pointer"
+                          onSelect={() => onDelete?.(m)}
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             </div>
-          ) : (
-            <div className="text-sm">
-              {m.content}
-            </div>
-          )}
-        </div>
-      ))}
+
+            {/* Message content / inline editor */}
+            {editingId === m.id ? (
+              <div className="mt-1 space-y-2">
+                <input
+                  className="w-full rounded border px-2 py-1 text-sm bg-background"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      commitEditing(m)
+                    } else if (e.key === "Escape") {
+                      cancelEditing()
+                    }
+                  }}
+                  autoFocus
+                />
+                <div className="flex gap-2 text-xs">
+                  <Button
+                    size="sm"
+                    className="h-7 px-3 cursor-pointer"
+                    onClick={() => commitEditing(m)}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-3 cursor-pointer"
+                    onClick={cancelEditing}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm">
+                {m.content}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

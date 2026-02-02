@@ -5,38 +5,55 @@ import { MessageList, UiMessage } from "./message-list";
 import { MessageComposer } from "./message-composer";
 import { io, type Socket } from "socket.io-client";
 
+type ApiMessage = {
+  id?: number | string;
+  channel_id?: number | string;
+  user_id?: number | string;
+  content?: string;
+  created_at?: string;
+  updated_at?: string;
+  user?: { id?: number | string; username?: string };
+  props?: ApiMessage;
+};
+
 /**
  * ChatPane
  * --------
  * Main chat container for a given server + channel.
  *
- * IMPORTANT DESIGN CHOICE (for now):
- * - NO message history is loaded yet
- * - messages only exist for the current client session
+ * Current behavior:
+ * - loads existing messages from the backend on mount
+ * - creates, edits and deletes messages via HTTP calls
+ * - keeps messages in local state for the current client session
  *
- * This component is intentionally prepared for:
- * - real-time messages via Socket.IO
- * - optimistic UI
- * - future REST-based history loading
- *
- * But at this stage:
- * - no REST fetch
- * - no socket connection
- * - no persistence
+ * Designed for future extensions:
+ * - real-time updates via Socket.IO (not wired yet)
+ * - optimistic UI with server reconciliation
+ * - richer history loading / pagination
  */
 export function ChatPane({
   serverId,
   channelId,
   currentUserName,
+  currentUserId,
+  canModerateOthers = false,
 }: {
   serverId: string;
   channelId: string;
   /**
    * Display name for the currently connected user.
-   * For now, this is a simple prop so that wiring
-   * real auth later is straightforward.
+   * Kept as a simple prop for now so that real
+   * authentication can be plugged in later.
    */
   currentUserName?: string;
+  /**
+   * Identifier of the current user (for ownership checks).
+   */
+  currentUserId?: string | number;
+  /**
+   * Whether the user can edit/delete messages from others (admin/owner).
+   */
+  canModerateOthers?: boolean;
 }) {
   const [messages, setMessages] = React.useState<UiMessage[]>([]);
 
@@ -61,7 +78,7 @@ export function ChatPane({
         setError(null);
 
         const res = await fetch(
-          `http://localhost:4000/api/channels/${channelId}/messages`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/messages`,
           {
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -73,10 +90,10 @@ export function ChatPane({
         }
 
         const json = await res.json();
-        const rawMessages: any[] = json.messages ?? [];
+        const rawMessages: ApiMessage[] = json.messages ?? [];
 
         const mapped: UiMessage[] = rawMessages
-          .map((raw) => {
+          .map((raw: ApiMessage) => {
             const base = raw && raw.props ? raw.props : raw;
             if (!base) return null;
 
@@ -99,6 +116,10 @@ export function ChatPane({
 
             return {
               id: String(base.id),
+              authorId:
+                base.user && typeof base.user.id !== "undefined"
+                  ? base.user.id
+                  : base.user_id,
               authorName: username,
               content: String(base.content ?? ""),
               createdAt,
@@ -128,12 +149,12 @@ export function ChatPane({
   }, [channelId]);
 
   /**
-   * Load channel metadata (name) so we can display it
-   * instead of the raw channel id.
+   * Loads channel metadata (name) so we can display a
+   * human-friendly label instead of the raw channel id.
    *
    * Uses the same /api/servers/:id/channels endpoint as the sidebar
-   * and is resilient to the backend returning either domain entities
-   * ({ props: { ... } }) or plain objects.
+   * and supports both domain entities ({ props: { ... } })
+   * and plain objects returned by the backend.
    */
   React.useEffect(() => {
     let cancelled = false;
@@ -153,10 +174,12 @@ export function ChatPane({
         const json = await res.json();
         const numericId = Number(channelId);
 
-        const match = (json.channels ?? []).find((raw: any) => {
-          const base = raw && raw.props ? raw.props : raw;
-          return Number(base?.id) === numericId;
-        });
+        const match = (json.channels ?? []).find(
+          (raw: { id?: number | string; props?: { id?: number | string } }) => {
+            const base = raw && raw.props ? raw.props : raw;
+            return Number(base?.id) === numericId;
+          },
+        );
 
         if (!cancelled && match) {
           const base = match.props ? match.props : match;
@@ -228,13 +251,13 @@ export function ChatPane({
    * Send handler called by MessageComposer.
    *
    * Current behavior:
-   * - immediately append an optimistic message
-   * - no backend call yet
+   * - immediately appends an optimistic message to the UI
+   * - then sends a POST request to the backend
    *
    * Future behavior:
-   * - emit socket event (message:create)
-   * - backend will broadcast message:new
-   * - optimistic message will be reconciled
+   * - emit a Socket.IO event (message:create)
+   * - listen for backend broadcasts (message:new)
+   * - reconcile optimistic messages with server data
    */
   async function handleSend(content: string) {
     // Create a temporary optimistic message id so we can update status later.
@@ -246,11 +269,12 @@ export function ChatPane({
 
     const optimistic: UiMessage = {
       id: tempId,
+      authorId: currentUserId,
       authorName: effectiveUserName,
       content,
       createdAt: new Date().toISOString(),
 
-      // Client-only flags (must never be stored in DB)
+      // Client-only flags (must never be stored in DB).
       isOptimistic: true,
     };
 
@@ -275,6 +299,7 @@ export function ChatPane({
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ content }),
+          credentials: "include",
         },
       );
 
@@ -293,17 +318,21 @@ export function ChatPane({
   }
 
   /**
-   * Edit handler (UI-only).
+   * Edit handler.
    *
-   * This currently updates bd.
-   * Later, this must:
-   * - check permissions (backend)
-   * - emit socket / REST update
+   * Currently:
+   * - updates the message optimistically in local state
+   * - sends a PATCH request to the backend
+   *
+   * Later this should:
+   * - enforce permissions server-side
+   * - emit a socket / REST update so other clients stay in sync
    */
   async function handleEditMessage(message: UiMessage, nextContent: string) {
     const trimmed = nextContent.trim();
     if (!trimmed || trimmed === message.content) return;
 
+    // Optimistic update in UI
     setMessages((prev) =>
       prev.map((m) =>
         m.id === message.id
@@ -312,14 +341,55 @@ export function ChatPane({
               content: trimmed,
               isOptimistic: true,
               isFailed: false,
+              isEdited: true,
             }
           : m,
       ),
     );
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/messages/${message.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: trimmed }),
+          credentials: "include",
+        },
+      );
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      // Mark as successfully synced with backend
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === message.id
+            ? { ...m, isOptimistic: false, isEdited: true, isFailed: false }
+            : m,
+        ),
+      );
+    } catch {
+      // Revert content and flag as failed
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === message.id
+            ? {
+                ...m,
+                content: message.content,
+                isOptimistic: false,
+                isFailed: true,
+                isEdited: message.isEdited ?? false,
+              }
+            : m,
+        ),
+      );
+    }
   }
 
   /**
-   * Delete handler (UI-only).
+   * Delete handler.
    *
    * Current behavior:
    * - calls backend DELETE /api/channels/:channelId/messages/:messageId
@@ -347,6 +417,9 @@ export function ChatPane({
           error={error}
           onEdit={handleEditMessage}
           onDelete={handleDeleteMessage}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+          canModerateOthers={canModerateOthers}
         />
       </div>
 

@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 type SignupValues = {
-  pseudo: string;
+  username: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -34,7 +34,12 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     watch,
     formState: { errors, isSubmitting },
   } = useForm<SignupValues>({
-    defaultValues: { pseudo: "", email: "", password: "", confirmPassword: "" },
+    defaultValues: {
+      username: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
   });
 
   const password = watch("password");
@@ -44,14 +49,15 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     setApiError(null);
 
     const payload = {
-      name: values.pseudo,
+      username: values.username,
       email: values.email,
       password: values.password,
+      confirmPassword: values.confirmPassword,
     };
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/signup`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/signup`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -89,17 +95,17 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
         <form onSubmit={handleSubmit(onSubmit)}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="pseudo">Pseudo</FieldLabel>
+              <FieldLabel htmlFor="username">Username</FieldLabel>
               <Input
-                id="pseudo"
+                id="username"
                 type="text"
                 placeholder="CoolPseudo42"
                 autoComplete="username"
-                {...register("pseudo", { required: "Pseudo is required" })}
+                {...register("username", { required: "Pseudo is required" })}
               />
-              {errors.pseudo && (
+              {errors.username && (
                 <FieldDescription className="text-destructive">
-                  {errors.pseudo.message}
+                  {errors.username.message}
                 </FieldDescription>
               )}
             </Field>
@@ -140,7 +146,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
               </FieldDescription>
             </Field>
             <Field>
-              <FieldLabel htmlFor="confirm-password">
+              <FieldLabel htmlFor="confirmPassword">
                 Confirm Password
               </FieldLabel>
               <Input
