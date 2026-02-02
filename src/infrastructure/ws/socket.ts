@@ -102,7 +102,7 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
                     user: { id: created.user.id, username: created.user.username },
                 };
 
-                io.to(`channel:${channelId}`).emit("message:new", dto);
+                socket.to(`channel:${channelId}`).emit("message:new", dto);
             },
         );
     });

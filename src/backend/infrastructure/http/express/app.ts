@@ -26,20 +26,7 @@ export function createApp() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  app.use(
-    session({
-      secret: "zizany",
-      resave: false,
-      saveUninitialized: false,
-      rolling: true,
-      cookie: {
-        httpOnly: true,
-        secure: false,
-        sameSite: "lax",
-        maxAge: 1000 * 60 * 60 * 24,
-      },
-    }),
-  );
+  app.use(sessionMiddleware);
 
   app.use("/api", apiRouter);
 

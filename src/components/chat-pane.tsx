@@ -222,7 +222,6 @@ export function ChatPane({
     });
 
     socket.on("message:new", (msg:any) => {
-      console.log("RECEIVED message:new", msg);
       const createdAt = msg.created_at;
       const updatedAt = msg.updated_at;
 
