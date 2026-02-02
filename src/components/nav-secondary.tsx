@@ -267,7 +267,7 @@ export function NavSecondary({
       if (thumbnailFile) fd.append("thumbnail", thumbnailFile);
 
       const res = await fetch(
-        `${process.env.EXPRESS_PUBLIC_API_URL}/api/servers`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/servers`,
         {
           method: "POST",
           body: fd,

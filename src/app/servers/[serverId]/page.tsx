@@ -22,7 +22,7 @@ export default async function ServerPage({
   const cookieHeader = (await cookieStore).toString();
 
   const res = await fetch(
-    `${process.env.EXPRESS_PUBLIC_API_URL}/api/servers/${serverId}/channels`,
+    `${process.env.NEXT_PUBLIC_API_URL}/api/servers/${serverId}/channels`,
     {
       headers: { "Cookie": cookieHeader, "Content-Type": "application/json" },
       cache: "no-store",

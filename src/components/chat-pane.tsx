@@ -133,7 +133,7 @@ export function ChatPane({
     async function loadChannel() {
       try {
         const res = await fetch(
-          `${process.env.EXPRESS_PUBLIC_API_URL}/api/servers/${serverId}/channels`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/servers/${serverId}/channels`,
           {
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -181,8 +181,8 @@ export function ChatPane({
    * - reconcile optimistic messages with server data
    */
   async function handleSend(content: string) {
-    // Create a temporary optimistic message id so we can update its status later.
-    const tempId = crypto.randomUUID()
+    // Create a temporary optimistic message id so we can update status later.
+    const tempId = crypto.randomUUID();
 
     // Use the provided currentUserName when available,
     // otherwise fall back to a neutral label.

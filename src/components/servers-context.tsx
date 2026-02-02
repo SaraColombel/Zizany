@@ -27,7 +27,7 @@ export function ServersProvider({ children }: { children: React.ReactNode }) {
     async function load() {
       try {
         const res = await fetch(
-          `${process.env.EXPRESS_PUBLIC_API_URL}/api/servers`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/servers`,
           {
             headers: { "Content-Type": "application/json" },
             credentials: "include",
