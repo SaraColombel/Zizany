@@ -31,8 +31,8 @@ export class PrismaUserRepository extends UserRepository {
     return data.map((user) => PrismaUserMapper.toDomain(user));
   }
 
-  async save(payload: UserProperties): Promise<void> {
-    await prisma.users.create({
+  async save(payload: Omit<UserProperties, "id">): Promise<User> {
+    const user = await prisma.users.create({
       data: {
         email: payload.email,
         password: payload.password,
@@ -40,6 +40,7 @@ export class PrismaUserRepository extends UserRepository {
         thumbnail: payload.thumbnail,
       },
     });
+    return PrismaUserMapper.toDomain(user);
   }
 
   async verify_password(userId: number, password: string): Promise<boolean> {

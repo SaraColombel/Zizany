@@ -1,5 +1,8 @@
 import { PrismaUserRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_user_repository";
-import { loginValidator } from "@/backend/infrastructure/validators/vine/auth_validator";
+import {
+  loginValidator,
+  registerValidator,
+} from "@/backend/infrastructure/validators/vine/auth_validator";
 import { ValidationError } from "@vinejs/vine";
 import { NextFunction, Request, Response } from "express";
 
@@ -81,19 +84,49 @@ export class AuthController {
     }
   }
 
-  async signin(req: Request, res: Response, next: NextFunction) {
-    return res.json({
-      status: req.statusCode,
+  async signup(req: Request, res: Response, next: NextFunction) {
+    const payload = await req.body;
+    const { username, email, password, confirmPassword } =
+      await registerValidator.validate(payload);
+
+    const userExist = (await new PrismaUserRepository().find_by_email(email))
+      ? true
+      : false;
+
+    if (userExist) {
+      return res.status(401).json({
+        code: "EMAIL_ALREADY_USED",
+      });
+    }
+
+    const user = await new PrismaUserRepository().save({
+      username,
+      email,
+      password: await hasher.hash(password),
+    });
+
+    return res.status(200).json({
       code: "AUTHORIZED_ACCESS",
-      timestamp: new Date().toISOString(),
+      user: {
+        id: user.props.id,
+        email,
+        username: user.props.username,
+        thumbnail: user.props.thumbnail,
+      },
     });
   }
 
   async logout(req: Request, res: Response, next: NextFunction) {
-    return res.json({
-      status: req.statusCode,
+    req.session.destroy((error) => {
+      if (error)
+        return res
+          .status(500)
+          .json({ code: "E_DISCONNECT_UNKNOWN", error: error });
+
+      res.clearCookie("connect.sid"); // Nom par défaut du cookie express-session
+    });
+    return res.status(200).json({
       code: "DISCONNECTED",
-      timestamp: new Date().toISOString(),
     });
   }
 }
