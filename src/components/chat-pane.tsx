@@ -64,6 +64,7 @@ export function ChatPane({
           `http://localhost:4000/api/channels/${channelId}/messages`,
           {
             headers: { "Content-Type": "application/json" },
+            credentials: "include",
           },
         );
 
@@ -176,18 +177,29 @@ export function ChatPane({
   }, [serverId, channelId]);
 
   React.useEffect(() => {
-    const socket = io(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000", {
+    const socket = io(process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:4000", {
       withCredentials: true,
+      transports: ["websocket"],
     });
 
     socketRef.current = socket;
 
     socket.on("connect", () => {
+      console.log("WS connected", socket.id);
       socket.emit("server:join", { serverId: Number(serverId) });
       socket.emit("channel:join", { channelId: Number(channelId) });
     });
 
+    socket.on("connect_error", (err) => {
+      console.log("WS connect_error", err.message);
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log("WS disconnected", reason);
+    });
+
     socket.on("message:new", (msg:any) => {
+      console.log("RECEIVED message:new", msg);
       const createdAt = msg.created_at;
       const updatedAt = msg.updated_at;
 
@@ -203,6 +215,10 @@ export function ChatPane({
     });
 
     return () => {
+      socket.off("connect");
+      socket.off("connect_error");
+      socket.off("disconnect");
+      socket.off("message:new");
       socket.disconnect();
       socketRef.current = null;
     };
@@ -241,12 +257,38 @@ export function ChatPane({
     setMessages((prev) => [...prev, optimistic]);
 
     const socket = socketRef.current;
+    console.log("socket connected?", socket?.connected);
     if (socket?.connected) {
       socket.emit("message:create", { channelId: Number(channelId), content });
       setMessages((prev) =>
       prev.map((m) => (m.id === tempId ? { ...m, isOptimistic: false } : m)),
     );
     return;
+    }
+
+    // Fallback REST
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ content }),
+        },
+      );
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      setMessages((prev) =>
+      prev.map((m) => (m.id === tempId ? { ...m, isOptimistic: false } : m)),
+    );
+    } catch {
+      setMessages((prev) =>
+      prev.map((m) =>
+      m.id === tempId ? { ...m, isOptimistic: false, isFailed: true } : m,
+    ),
+  );
     }
   }
 
