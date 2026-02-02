@@ -5,11 +5,11 @@
  * ---------------------
  * Sidebar section that lists channels for the current server.
  *
- * Responsibilities (UI only):
+ * Responsibilities:
  * - Fetch and display channels for a given server
  * - Show loading / error / empty states
- * - Expose a "Create channel" button that opens a simple pop-up
- *   to collect the new channel name (backend wiring will be added later)
+ * - Create, rename and delete channels by calling the backend API
+ * - Expose simple pop-ups / panels to manage channels
  */
 
 import * as React from "react"
@@ -58,13 +58,17 @@ export function ServerChannelsSidebar({
   const [channels, setChannels] = React.useState<Channel[]>([])
   const [error, setError] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState<boolean>(true)
+  const [creationMessage, setCreationMessage] = React.useState<string | null>(null)
 
   // UI state for overlays:
   // - "none": no overlay
   // - "create": create channel panel (fullscreen)
   // - "actions": channel actions (bottom panel)
   // - "rename": rename channel panel (fullscreen)
-  const [uiMode, setUiMode] = React.useState<"none" | "create" | "actions" | "rename">("none")
+  // - "delete": delete confirmation panel (fullscreen)
+  const [uiMode, setUiMode] = React.useState<
+    "none" | "create" | "actions" | "rename" | "delete"
+  >("none")
 
   // Channel currently selected for actions / rename.
   const [selectedChannel, setSelectedChannel] = React.useState<Channel | null>(null)
@@ -153,25 +157,48 @@ export function ServerChannelsSidebar({
 
   /**
    * Handle submission of the "create channel" pop-up form.
-   *
-   * For now this does not call the backend:
-   * - it only logs the future payload in the console
-   * - real API integration (POST /servers/:id/channels) will be added later
+   * Calls backend POST /api/servers/:id/channels and updates local state.
    */
-  function handleCreateSubmit(event: React.FormEvent) {
+  async function handleCreateSubmit(event: React.FormEvent) {
     event.preventDefault()
     const trimmed = newChannelName.trim()
     if (!trimmed) return
 
-    console.log(
-      "New channel created on server",
-      serverId,
-      "named:",
-      trimmed
-    )
+    try {
+      const res = await fetch(`http://localhost:4000/api/servers/${serverId}/channels`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      })
 
-    setNewChannelName("")
-    setUiMode("none")
+      const data = await res.json()
+
+      if (!res.ok) {
+        console.error("Failed to create channel:", data)
+        return
+      }
+
+      if (data.channel) {
+        const raw = data.channel.props ? data.channel.props : data.channel
+        const id = Number(raw.id)
+        const server_id = Number(raw.server_id ?? serverId)
+
+        if (Number.isFinite(id) && Number.isFinite(server_id)) {
+          const newChan: Channel = {
+            id,
+            server_id,
+            name: String(raw.name ?? trimmed),
+          }
+          setChannels((prev) => [...prev, newChan])
+        }
+      }
+
+      setNewChannelName("")
+      setUiMode("none")
+      setCreationMessage("Channel created successfully")
+    } catch (err) {
+      console.error("Network error while creating channel:", err)
+    }
   }
 
   return (
@@ -208,6 +235,10 @@ export function ServerChannelsSidebar({
 
       {!loading && !error && channels.length === 0 && (
         <div className="text-xs text-muted-foreground">No channels</div>
+      )}
+
+      {creationMessage && (
+        <div className="mt-1 text-xs text-green-600">{creationMessage}</div>
       )}
 
       <div className="mt-1 flex flex-col gap-1">
@@ -326,14 +357,7 @@ export function ServerChannelsSidebar({
                 variant="destructive"
                 className="h-9 w-full cursor-pointer px-3 text-sm"
                 onClick={() => {
-                  const ok = window.confirm(
-                    `Delete channel "${selectedChannel.name}"? This will be wired to the backend later.`
-                  )
-                  if (!ok) return
-                  setChannels((prev) =>
-                    prev.filter((ch) => ch.id !== selectedChannel.id)
-                  )
-                  closeOverlays()
+                  setUiMode("delete")
                 }}
               >
                 Delete
@@ -347,6 +371,66 @@ export function ServerChannelsSidebar({
                 }}
               >
                 Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation panel (centered) */}
+      {canManageChannels && uiMode === "delete" && selectedChannel && (
+        <div
+          className="bg-background/80 pointer-events-auto fixed inset-0 z-30 flex items-center justify-center backdrop-blur-m"
+          onClick={closeOverlays}
+        >
+          <div
+            className="w-full max-w-xs rounded-md border bg-popover p-4 shadow-lg"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="mb-2 text-sm font-semibold">Delete channel</h2>
+            <p className="mb-4 text-xs text-muted-foreground">
+              Are you sure you want to delete &quot;{selectedChannel.name}&quot;?
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 cursor-pointer text-xs"
+                onClick={closeOverlays}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="h-8 cursor-pointer text-xs"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(
+                      `http://localhost:4000/api/servers/${serverId}/channels/${selectedChannel.id}`,
+                      {
+                        method: "DELETE",
+                      }
+                    )
+
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => null)
+                      console.error("Failed to delete channel:", data ?? res.statusText)
+                      return
+                    }
+
+                    setChannels((prev) =>
+                      prev.filter((ch) => ch.id !== selectedChannel.id)
+                    )
+                    closeOverlays()
+                  } catch (err) {
+                    console.error("Network error while deleting channel:", err)
+                  }
+                }}
+              >
+                Delete
               </Button>
             </div>
           </div>
@@ -373,17 +457,37 @@ export function ServerChannelsSidebar({
             </h2>
             <form
               className="space-y-3"
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault()
                 const trimmed = renameName.trim()
                 if (!trimmed) return
 
-                setChannels((prev) =>
-                  prev.map((ch) =>
-                    ch.id === selectedChannel.id ? { ...ch, name: trimmed } : ch
+                try {
+                  const res = await fetch(
+                    `http://localhost:4000/api/servers/${serverId}/channels/${selectedChannel.id}`,
+                    {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ name: trimmed }),
+                    }
                   )
-                )
-                closeOverlays()
+
+                  if (!res.ok) {
+                    const data = await res.json().catch(() => null)
+                    console.error("Failed to rename channel:", data ?? res.statusText)
+                    return
+                  }
+
+                  // Update local state only if backend accepted the change
+                  setChannels((prev) =>
+                    prev.map((ch) =>
+                      ch.id === selectedChannel.id ? { ...ch, name: trimmed } : ch
+                    )
+                  )
+                  closeOverlays()
+                } catch (err) {
+                  console.error("Network error while renaming channel:", err)
+                }
               }}
             >
               <div className="space-y-1.5">
