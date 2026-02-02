@@ -1,9 +1,14 @@
 import "dotenv/config";
-import { createApp } from "./app";
+import http from "http";
+import { createApp, sessionMiddleware } from "./app";
+import { attachSocket } from "@/infrastructure/ws/socket";
 
 const PORT = Number(process.env.API_PORT ?? 4000);
 const app = createApp();
+const httpServer = http.createServer(app);
 
-app.listen(PORT, () => {
+attachSocket(httpServer, sessionMiddleware);
+
+httpServer.listen(PORT, () => {
   console.log(`[api] listening on http://localhost:${PORT}`);
 });
