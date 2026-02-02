@@ -38,11 +38,39 @@ export class PrismaChannelRepository extends ChannelRepository {
     return data.map((chan) => PrismaChannelMapper.toDomain(chan));
   }
 
-  async save(payload: ChannelProperties): Promise<void> {
-    await prisma.channels.create({
+  async save(payload: ChannelProperties): Promise<Channel> {
+    const data = await prisma.channels.create({
       data: {
         name: payload.name,
         server_id: payload.server_id,
+      },
+    });
+    return PrismaChannelMapper.toDomain(data);
+  }
+
+  async update(id: number, payload: Partial<ChannelProperties>) {
+    await prisma.channels.update({
+      where: {
+        id,
+      },
+      data: {
+        name: payload.name,
+        server_id: payload.server_id,
+      },
+    });
+  }
+
+  async delete(id: number) {
+    // First delete all messages belonging to this channel to satisfy FK constraints
+    await prisma.messages.deleteMany({
+      where: {
+        channel_id: id,
+      },
+    });
+
+    await prisma.channels.delete({
+      where: {
+        id,
       },
     });
   }

@@ -12,5 +12,9 @@ router.get("/", serverController.all);
 router.get("/:id", serverController.index);
 router.get("/:id/members", membershipController.all);
 router.get("/:id/channels", channelController.all);
+router.post("/:id/channels", channelController.create);
+router.put("/:id/channels/:channelId", channelController.update);
+router.delete("/:id/channels/:channelId", channelController.delete);
+
 
 export default router;
