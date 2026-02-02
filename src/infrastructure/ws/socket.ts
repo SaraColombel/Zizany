@@ -1,12 +1,12 @@
 import { Server as IOServer } from "socket.io";
 import type http from "http";
 import type { RequestHandler } from "express";
-import { prisma } from "@/infrastructure/persistence/prisma/prisma.client";
+import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
 
 export function attachSocket(httpServer: http.Server, sessionMiddleware: RequestHandler) {
     const io = new IOServer(httpServer, {
         cors: {
-            origin: true,
+            origin: "http://localhost:3000",
             credentials: true,
         },
     });
@@ -48,7 +48,7 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
             const membership = await prisma.memberships.findFirst({
                 where: { server_id: channel.server_id, user_id: userId },
             });
-            if (!membership) return socket.emit("error: permission", { code: "E_FORBIDDEN" });
+            if (!membership) return socket.emit("error:permission", { code: "E_FORBIDDEN" });
 
             socket.join(`channel:${channelId}`);
             socket.emit("channel:joined", { channelId });
@@ -63,7 +63,7 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
             });
         });
 
-        socket.on("typing: stop", ({ channelId }: { channelId: number }) => {
+        socket.on("typing:stop", ({ channelId }: { channelId: number }) => {
             socket.to(`channel:${channelId}`).emit("typing:update", {
                 channelId,
                 userId,
