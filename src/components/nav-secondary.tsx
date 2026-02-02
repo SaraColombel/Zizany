@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 /**
  * NavSecondary
@@ -16,10 +16,10 @@
  * Once the backend is connected, only the fetch() endpoint needs adjustment.
  */
 
-import * as React from "react"
-import { type Icon } from "@tabler/icons-react"
-import { usePathname } from "next/navigation"
-import Link from "next/link"
+import * as React from "react";
+import { type Icon } from "@tabler/icons-react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 
 import {
   SidebarGroup,
@@ -27,7 +27,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 import {
   Drawer,
@@ -35,7 +35,7 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerFooter,
-} from "@/components/ui/drawer"
+} from "@/components/ui/drawer";
 
 import {
   Sheet,
@@ -44,86 +44,88 @@ import {
   SheetTitle,
   SheetDescription,
   SheetFooter,
-} from "@/components/ui/sheet"
+} from "@/components/ui/sheet";
 
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 type NavItem = {
-  title: string
-  url: string
-  icon: Icon
-}
+  title: string;
+  url: string;
+  icon: Icon;
+};
 
 /**
  * Client-side constraints for uploaded images.
  */
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024 // 5MB
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 
 function isImage(file: File) {
-  return file.type.startsWith("image/")
+  return file.type.startsWith("image/");
 }
 
 /**
  * Utility for human-readable file sizes.
  */
 function humanBytes(bytes: number) {
-  const units = ["B", "KB", "MB", "GB"]
-  let i = 0
-  let b = bytes
+  const units = ["B", "KB", "MB", "GB"];
+  let i = 0;
+  let b = bytes;
   while (b >= 1024 && i < units.length - 1) {
-    b /= 1024
-    i++
+    b /= 1024;
+    i++;
   }
-  return `${b.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
+  return `${b.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
 export function NavSecondary({
   items,
   ...props
 }: {
-  items: NavItem[]
+  items: NavItem[];
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
-  const pathname = usePathname()
-  const activeIndex = items.findIndex((item) => pathname === item.url)
+  const pathname = usePathname();
+  const activeIndex = items.findIndex((item) => pathname === item.url);
 
   /**
    * Drawer open state (Create server form)
    */
-  const [openCreate, setOpenCreate] = React.useState(false)
+  const [openCreate, setOpenCreate] = React.useState(false);
 
   /**
    * Join server sheet state
    */
-  const [openJoin, setOpenJoin] = React.useState(false)
+  const [openJoin, setOpenJoin] = React.useState(false);
 
   /**
    * Form state (fully controlled, ready for backend)
    */
-  const [name, setName] = React.useState("")
-  const [bannerFile, setBannerFile] = React.useState<File | null>(null)
-  const [thumbnailFile, setThumbnailFile] = React.useState<File | null>(null)
+  const [name, setName] = React.useState("");
+  const [bannerFile, setBannerFile] = React.useState<File | null>(null);
+  const [thumbnailFile, setThumbnailFile] = React.useState<File | null>(null);
 
   /**
    * Local preview URLs (client-only, revoked on cleanup)
    */
-  const [bannerPreview, setBannerPreview] = React.useState<string | null>(null)
-  const [thumbnailPreview, setThumbnailPreview] = React.useState<string | null>(null)
+  const [bannerPreview, setBannerPreview] = React.useState<string | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = React.useState<string | null>(
+    null,
+  );
 
   /**
    * UX feedback state
    */
-  const [apiError, setApiError] = React.useState<string | null>(null)
-  const [successMsg, setSuccessMsg] = React.useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [apiError, setApiError] = React.useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   /**
    * Join server state
    */
-  const [inviteLink, setInviteLink] = React.useState("")
-  const [joinError, setJoinError] = React.useState<string | null>(null)
-  const [joinSuccess, setJoinSuccess] = React.useState<string | null>(null)
-  const [isJoining, setIsJoining] = React.useState(false)
+  const [inviteLink, setInviteLink] = React.useState("");
+  const [joinError, setJoinError] = React.useState<string | null>(null);
+  const [joinSuccess, setJoinSuccess] = React.useState<string | null>(null);
+  const [isJoining, setIsJoining] = React.useState(false);
 
   /**
    * Temporary detection logic for the "Create server" menu item.
@@ -131,7 +133,7 @@ export function NavSecondary({
    */
   const isCreateItem = (item: NavItem) =>
     item.title.toLowerCase().includes("create") &&
-    item.title.toLowerCase().includes("server")
+    item.title.toLowerCase().includes("server");
 
   /**
    * Temporary detection logic for the "Join a server" menu item.
@@ -139,27 +141,27 @@ export function NavSecondary({
    */
   const isJoinItem = (item: NavItem) =>
     item.title.toLowerCase().includes("join") &&
-    item.title.toLowerCase().includes("server")
+    item.title.toLowerCase().includes("server");
 
   /**
    * Reset the form and all related UI state.
    * Called on cancel, close, or successful creation.
    */
   function resetForm() {
-    setName("")
-    setBannerFile(null)
-    setThumbnailFile(null)
-    setApiError(null)
-    setSuccessMsg(null)
+    setName("");
+    setBannerFile(null);
+    setThumbnailFile(null);
+    setApiError(null);
+    setSuccessMsg(null);
   }
 
   /**
    * Reset join server UI state.
    */
   function resetJoinForm() {
-    setInviteLink("")
-    setJoinError(null)
-    setJoinSuccess(null)
+    setInviteLink("");
+    setJoinError(null);
+    setJoinSuccess(null);
   }
 
   /**
@@ -167,53 +169,50 @@ export function NavSecondary({
    */
   React.useEffect(() => {
     if (!bannerFile) {
-      setBannerPreview(null)
-      return
+      setBannerPreview(null);
+      return;
     }
-    const url = URL.createObjectURL(bannerFile)
-    setBannerPreview(url)
-    return () => URL.revokeObjectURL(url)
-  }, [bannerFile])
+    const url = URL.createObjectURL(bannerFile);
+    setBannerPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [bannerFile]);
 
   /**
    * Generate and clean up thumbnail preview URL.
    */
   React.useEffect(() => {
     if (!thumbnailFile) {
-      setThumbnailPreview(null)
-      return
+      setThumbnailPreview(null);
+      return;
     }
-    const url = URL.createObjectURL(thumbnailFile)
-    setThumbnailPreview(url)
-    return () => URL.revokeObjectURL(url)
-  }, [thumbnailFile])
+    const url = URL.createObjectURL(thumbnailFile);
+    setThumbnailPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [thumbnailFile]);
 
   /**
    * Client-side validation
    */
-  const trimmedName = name.trim()
-  const nameError = trimmedName.length === 0 ? "Server name is required" : null
+  const trimmedName = name.trim();
+  const nameError = trimmedName.length === 0 ? "Server name is required" : null;
 
   function validateFile(file: File | null, label: string): string | null {
-    if (!file) return null
-    if (!isImage(file)) return `${label} must be an image`
+    if (!file) return null;
+    if (!isImage(file)) return `${label} must be an image`;
     if (file.size > MAX_IMAGE_BYTES) {
-      return `${label} is too large (max ${humanBytes(MAX_IMAGE_BYTES)})`
+      return `${label} is too large (max ${humanBytes(MAX_IMAGE_BYTES)})`;
     }
-    return null
+    return null;
   }
 
-  const bannerError = validateFile(bannerFile, "Banner")
-  const thumbnailError = validateFile(thumbnailFile, "Thumbnail")
+  const bannerError = validateFile(bannerFile, "Banner");
+  const thumbnailError = validateFile(thumbnailFile, "Thumbnail");
 
   /**
    * Final submit guard.
    */
   const canSubmit =
-    !nameError &&
-    !bannerError &&
-    !thumbnailError &&
-    !isSubmitting
+    !nameError && !bannerError && !thumbnailError && !isSubmitting;
 
   /**
    * Simple URL validation helper for invite links.
@@ -221,22 +220,22 @@ export function NavSecondary({
   function isValidUrl(value: string) {
     try {
       // eslint-disable-next-line no-new
-      new URL(value)
-      return true
+      new URL(value);
+      return true;
     } catch {
-      return false
+      return false;
     }
   }
 
-  const trimmedInvite = inviteLink.trim()
+  const trimmedInvite = inviteLink.trim();
   const inviteError =
     trimmedInvite.length === 0
       ? "Invitation link is required"
       : !isValidUrl(trimmedInvite)
         ? "Please enter a valid URL"
-        : null
+        : null;
 
-  const canJoin = !inviteError && !isJoining
+  const canJoin = !inviteError && !isJoining;
 
   /**
    * Create server handler.
@@ -254,44 +253,48 @@ export function NavSecondary({
    *  - thumbnail: File (optional)
    */
   async function onCreate() {
-    setApiError(null)
-    setSuccessMsg(null)
+    setApiError(null);
+    setSuccessMsg(null);
 
-    if (!canSubmit) return
+    if (!canSubmit) return;
 
     try {
-      setIsSubmitting(true)
+      setIsSubmitting(true);
 
-      const fd = new FormData()
-      fd.append("name", trimmedName)
-      if (bannerFile) fd.append("banner", bannerFile)
-      if (thumbnailFile) fd.append("thumbnail", thumbnailFile)
+      const fd = new FormData();
+      fd.append("name", trimmedName);
+      if (bannerFile) fd.append("banner", bannerFile);
+      if (thumbnailFile) fd.append("thumbnail", thumbnailFile);
 
-      const res = await fetch("http://localhost:4000/api/servers", {
-        method: "POST",
-        body: fd,
-      })
+      const res = await fetch(
+        `${process.env.EXPRESS_PUBLIC_API_URL}/api/servers`,
+        {
+          method: "POST",
+          body: fd,
+          credentials: "include",
+        },
+      );
 
       if (!res.ok) {
-        let details = ""
+        let details = "";
         try {
-          const json = await res.json()
-          const msg = (json?.message ?? json?.error ?? "").toString()
-          if (msg) details = `: ${msg}`
+          const json = await res.json();
+          const msg = (json?.message ?? json?.error ?? "").toString();
+          if (msg) details = `: ${msg}`;
         } catch {
           // ignore invalid JSON error payload
         }
-        throw new Error(`Create failed (HTTP ${res.status})${details}`)
+        throw new Error(`Create failed (HTTP ${res.status})${details}`);
       }
 
       /**
        * This message will appear automatically
        * as soon as the backend is properly connected.
        */
-      setSuccessMsg("Server successfully created")
+      setSuccessMsg("Server successfully created");
 
-      setOpenCreate(false)
-      resetForm()
+      setOpenCreate(false);
+      resetForm();
     } catch (e) {
       /**
        * Natural failure path when backend is missing or unreachable.
@@ -300,10 +303,10 @@ export function NavSecondary({
       setApiError(
         e instanceof Error
           ? e.message
-          : "Create failed (backend not connected)"
-      )
+          : "Create failed (backend not connected)",
+      );
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
   }
 
@@ -320,27 +323,27 @@ export function NavSecondary({
    *   { invite: string }
    */
   async function onJoin() {
-    setJoinError(null)
-    setJoinSuccess(null)
+    setJoinError(null);
+    setJoinSuccess(null);
 
-    if (!canJoin) return
+    if (!canJoin) return;
 
     try {
-      setIsJoining(true)
+      setIsJoining(true);
 
       /**
        * Placeholder for future backend call.
        * Kept async to make wiring the real fetch() trivial.
        */
-      await new Promise((resolve) => setTimeout(resolve, 400))
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
-      setJoinSuccess("Invitation link accepted. Backend integration pending.")
+      setJoinSuccess("Invitation link accepted. Backend integration pending.");
       // We intentionally keep the sheet open so the user
       // can still see the link and the success message.
     } catch {
-      setJoinError("Join failed (backend not connected yet)")
+      setJoinError("Join failed (backend not connected yet)");
     } finally {
-      setIsJoining(false)
+      setIsJoining(false);
     }
   }
 
@@ -351,9 +354,9 @@ export function NavSecondary({
         <SidebarGroupContent>
           <SidebarMenu>
             {items.map((item, index) => {
-              const isActive = index === activeIndex
-              const isCreate = isCreateItem(item)
-              const isJoin = isJoinItem(item)
+              const isActive = index === activeIndex;
+              const isCreate = isCreateItem(item);
+              const isJoin = isJoinItem(item);
 
               return (
                 <SidebarMenuItem key={item.title}>
@@ -363,17 +366,17 @@ export function NavSecondary({
                     onClick={
                       isCreate
                         ? () => {
-                            setApiError(null)
-                            setSuccessMsg(null)
-                            setOpenCreate(true)
+                            setApiError(null);
+                            setSuccessMsg(null);
+                            setOpenCreate(true);
                           }
                         : isJoin
                           ? () => {
-                              setJoinError(null)
-                              setJoinSuccess(null)
-                              setOpenJoin(true)
+                              setJoinError(null);
+                              setJoinSuccess(null);
+                              setOpenJoin(true);
                             }
-                        : undefined
+                          : undefined
                     }
                     className="cursor-pointer"
                   >
@@ -390,7 +393,7 @@ export function NavSecondary({
                     )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              )
+              );
             })}
           </SidebarMenu>
         </SidebarGroupContent>
@@ -400,8 +403,8 @@ export function NavSecondary({
       <Drawer
         open={openCreate}
         onOpenChange={(v) => {
-          setOpenCreate(v)
-          if (!v) resetForm()
+          setOpenCreate(v);
+          if (!v) resetForm();
         }}
         direction="left"
       >
@@ -444,9 +447,7 @@ export function NavSecondary({
               <Input
                 type="file"
                 accept="image/*"
-                onChange={(e) =>
-                  setBannerFile(e.target.files?.[0] ?? null)
-                }
+                onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)}
                 className="cursor-pointer file:cursor-pointer hover:bg-muted/40"
               />
               {bannerError && (
@@ -470,9 +471,7 @@ export function NavSecondary({
               <Input
                 type="file"
                 accept="image/*"
-                onChange={(e) =>
-                  setThumbnailFile(e.target.files?.[0] ?? null)
-                }
+                onChange={(e) => setThumbnailFile(e.target.files?.[0] ?? null)}
                 className="cursor-pointer file:cursor-pointer hover:bg-muted/40"
               />
               {thumbnailError && (
@@ -500,8 +499,8 @@ export function NavSecondary({
                   type="button"
                   className="cursor-pointer"
                   onClick={() => {
-                    setOpenCreate(false)
-                    resetForm()
+                    setOpenCreate(false);
+                    resetForm();
                   }}
                 >
                   Cancel
@@ -525,8 +524,8 @@ export function NavSecondary({
       <Sheet
         open={openJoin}
         onOpenChange={(v) => {
-          setOpenJoin(v)
-          if (!v) resetJoinForm()
+          setOpenJoin(v);
+          if (!v) resetJoinForm();
         }}
       >
         <SheetContent side="bottom">
@@ -555,9 +554,7 @@ export function NavSecondary({
 
             {/* Invitation link input */}
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Invitation link
-              </label>
+              <label className="text-sm font-medium">Invitation link</label>
               <Input
                 value={inviteLink}
                 onChange={(e) => setInviteLink(e.target.value)}
@@ -576,8 +573,8 @@ export function NavSecondary({
                 type="button"
                 className="cursor-pointer"
                 onClick={() => {
-                  setOpenJoin(false)
-                  resetJoinForm()
+                  setOpenJoin(false);
+                  resetJoinForm();
                 }}
               >
                 Cancel
@@ -596,5 +593,5 @@ export function NavSecondary({
         </SheetContent>
       </Sheet>
     </>
-  )
+  );
 }
