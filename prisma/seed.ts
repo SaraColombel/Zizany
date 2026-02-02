@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { prisma } from "@/infrastructure/persistence/prisma/prisma.client";
-import { BcryptHasher } from "@/infrastructure/security/bcrypt_hasher";
+import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
+import { BcryptHasher } from "@/backend/infrastructure/security/bcrypt_hasher";
 
 const hasher = new BcryptHasher();
 

@@ -171,10 +171,11 @@ export function ServerChannelsSidebar({
     if (!trimmed) return
 
     try {
-      const res = await fetch(`http://localhost:4000/api/servers/${serverId}/channels`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/servers/${serverId}/channels`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trimmed }),
+        credentials: "include",
       })
 
       const data = await res.json()
@@ -404,9 +405,10 @@ export function ServerChannelsSidebar({
                 onClick={async () => {
                   try {
                     const res = await fetch(
-                      `http://localhost:4000/api/servers/${serverId}/channels/${selectedChannel.id}`,
+                      `${process.env.NEXT_PUBLIC_API_URL}/api/servers/${serverId}/channels/${selectedChannel.id}`,
                       {
                         method: "DELETE",
+                        credentials: "include",
                       }
                     )
 
@@ -460,11 +462,12 @@ export function ServerChannelsSidebar({
 
               try {
                 const res = await fetch(
-                  `http://localhost:4000/api/servers/${serverId}/channels/${selectedChannel.id}`,
+                  `${process.env.NEXT_PUBLIC_API_URL}/api/servers/${serverId}/channels/${selectedChannel.id}`,
                   {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ name: trimmed }),
+                    credentials: "include",
                   }
                 )
 

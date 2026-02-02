@@ -54,9 +54,10 @@ export function ChatPane({
         setError(null);
 
         const res = await fetch(
-          `http://localhost:4000/api/channels/${channelId}/messages`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/messages`,
           {
             headers: { "Content-Type": "application/json" },
+            credentials: "include",
           },
         );
 
@@ -202,11 +203,12 @@ export function ChatPane({
 
     try {
       const res = await fetch(
-        `http://localhost:4000/api/channels/${channelId}/messages`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/messages`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content }),
+          credentials: "include",
         },
       );
 

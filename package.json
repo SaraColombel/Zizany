@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "dev:api": "tsx watch src/infrastructure/http/express/server.ts",
+    "dev:api": "tsx watch src/backend/infrastructure/http/express/server.ts",
     "dev:all": "concurrently -n web, api \"npm run dev\" \"npm run dev:api\"",
     "build": "next build",
     "start": "next start",
