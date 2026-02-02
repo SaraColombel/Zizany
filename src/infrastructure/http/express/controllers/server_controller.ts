@@ -5,7 +5,6 @@ export class ServerController {
   async all(req: Request, res: Response, next: NextFunction) {
     try {
       const servers = await new PrismaServerRepository().get_all();
-      console.log(true);
       return res.json({
         servers,
       });
@@ -18,7 +17,6 @@ export class ServerController {
   async index(req: Request, res: Response, next: NextFunction) {
     try {
       const id = parseInt(req.params.id[0]);
-      console.log(true);
       const server = await new PrismaServerRepository().find_by_id(id);
       return res.json({
         server,

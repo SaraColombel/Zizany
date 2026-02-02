@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { MessageList, UiMessage } from "./message-list"
-import { MessageComposer } from "./message-composer"
+import * as React from "react";
+import { MessageList, UiMessage } from "./message-list";
+import { MessageComposer } from "./message-composer";
 
 /**
  * ChatPane
@@ -27,8 +27,8 @@ export function ChatPane({
   serverId,
   channelId,
 }: {
-  serverId: string
-  channelId: string
+  serverId: string;
+  channelId: string;
 }) {
   /**
    * In-memory message list.
@@ -37,16 +37,16 @@ export function ChatPane({
    * - socket events (message:new)
    * - REST history (future)
    */
-  const [messages, setMessages] = React.useState<UiMessage[]>([])
+  const [messages, setMessages] = React.useState<UiMessage[]>([]);
 
   /**
    * Loading / error states are kept on purpose,
    * even if unused for now, to keep the component API stable
    * when backend integration starts.
    */
-  const [loading, setLoading] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const [channelName, setChannelName] = React.useState<string | null>(null)
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [channelName, setChannelName] = React.useState<string | null>(null);
 
   /**
    * Load channel metadata (name) so we can display it
@@ -57,44 +57,45 @@ export function ChatPane({
    * ({ props: { ... } }) or plain objects.
    */
   React.useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
 
     async function loadChannel() {
       try {
         const res = await fetch(
-          `http://localhost:4000/api/servers/${serverId}/channels`,
+          `${process.env.EXPRESS_PUBLIC_API_URL}/api/servers/${serverId}/channels`,
           {
             headers: { "Content-Type": "application/json" },
-          }
-        )
+            credentials: "include",
+          },
+        );
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        const json = await res.json()
-        const numericId = Number(channelId)
+        const json = await res.json();
+        const numericId = Number(channelId);
 
         const match = (json.channels ?? []).find((raw: any) => {
-          const base = raw && raw.props ? raw.props : raw
-          return Number(base?.id) === numericId
-        })
+          const base = raw && raw.props ? raw.props : raw;
+          return Number(base?.id) === numericId;
+        });
 
         if (!cancelled && match) {
-          const base = match.props ? match.props : match
-          setChannelName(String(base.name ?? `#${channelId}`))
+          const base = match.props ? match.props : match;
+          setChannelName(String(base.name ?? `#${channelId}`));
         }
       } catch {
         if (!cancelled) {
           // Keep a graceful fallback; header will show the id.
-          setChannelName(null)
+          setChannelName(null);
         }
       }
     }
 
-    loadChannel()
+    loadChannel();
     return () => {
-      cancelled = true
-    }
-  }, [serverId, channelId])
+      cancelled = true;
+    };
+  }, [serverId, channelId]);
 
   /**
    * Send handler called by MessageComposer.
@@ -117,9 +118,9 @@ export function ChatPane({
 
       // Client-only flag (must never be stored in DB)
       isOptimistic: true,
-    }
+    };
 
-    setMessages((prev) => [...prev, optimistic])
+    setMessages((prev) => [...prev, optimistic]);
 
     /**
      * TODO (backend):
@@ -140,8 +141,8 @@ export function ChatPane({
    * - emit socket / REST update
    */
   function handleEditMessage(message: UiMessage) {
-    const next = window.prompt("Edit message:", message.content)
-    if (next == null) return
+    const next = window.prompt("Edit message:", message.content);
+    if (next == null) return;
 
     setMessages((prev) =>
       prev.map((m) =>
@@ -151,9 +152,9 @@ export function ChatPane({
               content: next,
               isOptimistic: true, // until backend confirms
             }
-          : m
-      )
-    )
+          : m,
+      ),
+    );
   }
 
   /**
@@ -165,7 +166,7 @@ export function ChatPane({
    * - propagate deletion to other clients
    */
   function handleDeleteMessage(message: UiMessage) {
-    setMessages((prev) => prev.filter((m) => m.id !== message.id))
+    setMessages((prev) => prev.filter((m) => m.id !== message.id));
   }
 
   return (
@@ -188,11 +189,8 @@ export function ChatPane({
 
       {/* Message composer */}
       <div className="border-t p-3">
-        <MessageComposer
-          onSend={handleSend}
-          disabled={!!error}
-        />
+        <MessageComposer onSend={handleSend} disabled={!!error} />
       </div>
     </div>
-  )
+  );
 }

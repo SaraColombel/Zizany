@@ -2,13 +2,30 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import apiRouter from "./routes";
+import session from "express-session";
 
 export function createApp() {
   const app = express();
 
   app.use(cors({ origin: true, credentials: true }));
-  app.use(express.json());
   app.use(cookieParser());
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+
+  app.use(
+    session({
+      secret: "zizany",
+      resave: false,
+      saveUninitialized: false,
+      rolling: true,
+      cookie: {
+        httpOnly: true,
+        secure: false,
+        sameSite: "lax",
+        maxAge: 1000 * 60 * 60 * 24,
+      },
+    }),
+  );
 
   app.use("/api", apiRouter);
 

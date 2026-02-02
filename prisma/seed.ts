@@ -1,22 +1,25 @@
 import "dotenv/config";
 import { prisma } from "@/infrastructure/persistence/prisma/prisma.client";
+import { BcryptHasher } from "@/infrastructure/security/bcrypt_hasher";
+
+const hasher = new BcryptHasher();
 
 async function main() {
   const users = await prisma.users.createMany({
     data: [
       {
         email: "sara.colombel@epitech.eu",
-        password: "sara",
+        password: await hasher.hash("sara"),
         username: "sarac",
       },
       {
         email: "mathieu.vergez@epitech.eu",
-        password: "mathieu",
+        password: await hasher.hash("mathieu"),
         username: "mathieuv",
       },
       {
         email: "jeremy.boubee@epitech.eu",
-        password: "jeremy",
+        password: await hasher.hash("jeremy"),
         username: "jeremyb",
       },
     ],

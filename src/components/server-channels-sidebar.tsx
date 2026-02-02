@@ -1,76 +1,78 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import * as React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 type Channel = {
-  id: number
-  server_id: number
-  name: string
-}
+  id: number;
+  server_id: number;
+  name: string;
+};
 
 export function ServerChannelsSidebar({ serverId }: { serverId: string }) {
-  const pathname = usePathname()
-  const [channels, setChannels] = React.useState<Channel[]>([])
-  const [error, setError] = React.useState<string | null>(null)
-  const [loading, setLoading] = React.useState<boolean>(true)
+  const pathname = usePathname();
+  const [channels, setChannels] = React.useState<Channel[]>([]);
+  const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState<boolean>(true);
 
   React.useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
 
     async function load() {
       try {
-        setLoading(true)
-        setError(null)
+        setLoading(true);
+        setError(null);
 
         const res = await fetch(
-          `http://localhost:4000/api/servers/${serverId}/channels`,
+          `${process.env.EXPRESS_PUBLIC_API_URL}/api/servers/${serverId}/channels`,
           {
             headers: { "Content-Type": "application/json" },
-          }
-        )
+            credentials: "include",
+          },
+        );
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        const json = await res.json()
+        const json = await res.json();
 
         const normalized: Channel[] = (json.channels ?? [])
           .map((raw: any) => {
-            const base = raw && raw.props ? raw.props : raw
-            if (!base) return null
+            const base = raw && raw.props ? raw.props : raw;
+            if (!base) return null;
 
-            const id = Number(base.id)
-            const server_id = Number(base.server_id)
-            if (!Number.isFinite(id) || !Number.isFinite(server_id)) return null
+            const id = Number(base.id);
+            const server_id = Number(base.server_id);
+            if (!Number.isFinite(id) || !Number.isFinite(server_id))
+              return null;
 
             return {
               id,
               server_id,
               name: String(base.name ?? "Untitled channel"),
-            } satisfies Channel
+            } satisfies Channel;
           })
-          .filter((c: Channel | null): c is Channel => c !== null)
+          .filter((c: Channel | null): c is Channel => c !== null);
 
         if (!cancelled) {
-          setChannels(normalized)
+          setChannels(normalized);
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load channels")
+          setError(e instanceof Error ? e.message : "Failed to load channels");
         }
       } finally {
         if (!cancelled) {
-          setLoading(false)
+          setLoading(false);
         }
       }
     }
 
-    load()
+    load();
     return () => {
-      cancelled = true
-    }
-  }, [serverId])
+      cancelled = true;
+    };
+  }, [serverId]);
 
   return (
     <div className="p-3">
@@ -92,8 +94,8 @@ export function ServerChannelsSidebar({ serverId }: { serverId: string }) {
 
       <div className="mt-1 flex flex-col gap-1">
         {channels.map((channel) => {
-          const href = `/servers/${serverId}/channels/${channel.id}`
-          const isActive = pathname === href
+          const href = `/servers/${serverId}/channels/${channel.id}`;
+          const isActive = pathname === href;
 
           return (
             <Link
@@ -108,9 +110,9 @@ export function ServerChannelsSidebar({ serverId }: { serverId: string }) {
             >
               #{channel.name}
             </Link>
-          )
+          );
         })}
       </div>
     </div>
-  )
+  );
 }
