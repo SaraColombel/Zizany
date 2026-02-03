@@ -40,10 +40,20 @@ export function SectionCards() {
                 {server.name}
               </CardTitle>
             </CardHeader>
-            <CardFooter className="flex items-center justify-between gap-1.5 text-sm">
+              <CardFooter className="flex items-center justify-between gap-1.5 text-sm">
               <div className="flex flex-col items-start gap-1">
                 <div className="line-clamp-1 flex gap-2 font-medium">
-                  {server.members ?? "—"} members
+                  <span>{server.members ?? "—"} members </span>
+                  <span className="inline-flex items-center gap-1 text-muted-foreground">
+                    |
+                    <span
+                      className="h-2 w-2 rounded-full bg-emerald-500"
+                      aria-hidden="true"
+                    />
+                    <span className="text-foreground">
+                      {server.onlineMembers ?? 0}
+                    </span>
+                  </span>
                 </div>
                 {/* <div className="text-muted-foreground">
                   {server.subtitle}
