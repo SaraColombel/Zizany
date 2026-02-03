@@ -8,6 +8,12 @@ import {
   markOnline,
 } from "@/backend/infrastructure/ws/presence_store";
 
+let ioRef: IOServer | null = null;
+
+export function getSocketServer() {
+  return ioRef;
+}
+
 export function attachSocket(httpServer: http.Server, sessionMiddleware: RequestHandler) {
   const io = new IOServer(httpServer, {
     cors: {
@@ -15,6 +21,7 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
       credentials: true,
     },
   });
+  ioRef = io;
 
   // Bridge express-session -> socket.request
   io.use((socket, next) => {

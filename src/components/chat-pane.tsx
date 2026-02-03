@@ -243,6 +243,58 @@ export function ChatPane({
     });
 
     socket.on(
+      "server:member_joined",
+      (payload: { serverId: number; userId: number; username?: string }) => {
+        if (Number(payload.serverId) !== Number(serverId)) return;
+        if (
+          currentUserId != null &&
+          String(payload.userId) === String(currentUserId)
+        ) {
+          return;
+        }
+
+        const displayName = payload.username ?? `User ${payload.userId}`;
+        const content = `${displayName} has joined the server. Welcome!`;
+
+        const systemMsg: UiMessage = {
+          id: `system-${payload.userId}-${Date.now()}`,
+          authorId: "system",
+          authorName: "System",
+          content,
+          createdAt: new Date().toISOString(),
+        };
+
+        setMessages((prev) => [...prev, systemMsg]);
+      },
+    );
+
+    socket.on(
+      "server:member_left",
+      (payload: { serverId: number; userId: number; username?: string }) => {
+        if (Number(payload.serverId) !== Number(serverId)) return;
+        if (
+          currentUserId != null &&
+          String(payload.userId) === String(currentUserId)
+        ) {
+          return;
+        }
+
+        const displayName = payload.username ?? `User ${payload.userId}`;
+        const content = `${displayName} has left the server.`;
+
+        const systemMsg: UiMessage = {
+          id: `system-left-${payload.userId}-${Date.now()}`,
+          authorId: "system",
+          authorName: "System",
+          content,
+          createdAt: new Date().toISOString(),
+        };
+
+        setMessages((prev) => [...prev, systemMsg]);
+      },
+    );
+
+    socket.on(
       "typing:update",
       (payload: {
         channelId: number;
@@ -276,11 +328,13 @@ export function ChatPane({
       socket.off("connect_error");
       socket.off("disconnect");
       socket.off("message:new");
+      socket.off("server:member_joined");
+      socket.off("server:member_left");
       socket.off("typing:update");
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [serverId, channelId]);
+  }, [serverId, channelId, currentUserId]);
 
   /**
    * Send handler called by MessageComposer.
