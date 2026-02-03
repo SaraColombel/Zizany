@@ -1,12 +1,52 @@
 import { NextFunction, Request, Response } from "express";
 import { PrismaServerRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_server_repository";
 import { PrismaMembershipRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_membership_repository";
+import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
+import { getOnlineUserIds } from "@/backend/infrastructure/ws/presence_store";
 export class ServerController {
   async all(req: Request, res: Response, next: NextFunction) {
     try {
       const servers = await new PrismaServerRepository().get_all();
+      const serverIds = servers.map((server) => server.props.id);
+
+      const membershipCounts =
+        serverIds.length === 0
+          ? []
+          : await prisma.memberships.groupBy({
+              by: ["server_id"],
+              where: { server_id: { in: serverIds } },
+              _count: { _all: true },
+            });
+      const membersByServer = new Map(
+        membershipCounts.map((row) => [row.server_id, row._count._all]),
+      );
+
+      const onlineUserIds = getOnlineUserIds();
+      const onlineCounts =
+        serverIds.length === 0 || onlineUserIds.length === 0
+          ? []
+          : await prisma.memberships.groupBy({
+              by: ["server_id"],
+              where: {
+                server_id: { in: serverIds },
+                user_id: { in: onlineUserIds },
+              },
+              _count: { _all: true },
+            });
+      const onlineByServer = new Map(
+        onlineCounts.map((row) => [row.server_id, row._count._all]),
+      );
+
+      const payload = servers.map((server) => ({
+        id: server.props.id,
+        name: server.props.name,
+        thumbnail: server.props.thumbnail ?? null,
+        banner: server.props.banner ?? null,
+        members: membersByServer.get(server.props.id) ?? 0,
+        onlineMembers: onlineByServer.get(server.props.id) ?? 0,
+      }));
       return res.json({
-        servers,
+        servers: payload,
       });
     } catch (err) {
       console.log(err);

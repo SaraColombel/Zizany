@@ -2,25 +2,11 @@ import { Server as IOServer } from "socket.io";
 import type http from "http";
 import type { RequestHandler } from "express";
 import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
-
-const onlineUsers = new Map<number, number>();
-
-function markOnline(userId: number) {
-  const next = (onlineUsers.get(userId) ?? 0) + 1;
-  onlineUsers.set(userId, next);
-  return next === 1;
-}
-
-function markOffline(userId: number) {
-  const current = onlineUsers.get(userId);
-  if (!current) return false;
-  if (current <= 1) {
-    onlineUsers.delete(userId);
-    return true;
-  }
-  onlineUsers.set(userId, current - 1);
-  return false;
-}
+import {
+  getOnlineUserIdSet,
+  markOffline,
+  markOnline,
+} from "@/backend/infrastructure/ws/presence_store";
 
 export function attachSocket(httpServer: http.Server, sessionMiddleware: RequestHandler) {
   const io = new IOServer(httpServer, {
@@ -52,7 +38,7 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
         where: { server_id: serverId },
         select: { user_id: true },
       });
-      const onlineSet = new Set(onlineUsers.keys());
+      const onlineSet = getOnlineUserIdSet();
       const onlineUserIds = members
         .map((m) => m.user_id)
         .filter((id) => onlineSet.has(id));
