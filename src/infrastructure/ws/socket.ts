@@ -27,6 +27,17 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
 
     io.on("connection", (socket) => {
         const userId = socket.data.userId as number;
+        let cachedUsername: string | null = null;
+
+        const ensureUsername = async () => {
+            if (cachedUsername) return cachedUsername;
+            const user = await prisma.users.findUnique({
+                where: { id: userId },
+                select: { username: true },
+            });
+            cachedUsername = user?.username ?? null;
+            return cachedUsername;
+        };
 
         // Join server room
         socket.on("server:join", async ({ serverId }: { serverId: number }) => {
@@ -55,18 +66,22 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
         });
 
         // Typing
-        socket.on("typing:start", ({ channelId }: { channelId: number }) => {
+        socket.on("typing:start", async ({ channelId }: { channelId: number }) => {
+            const username = await ensureUsername();
             socket.to(`channel:${channelId}`).emit("typing:update", {
                 channelId,
                 userId,
+                username: username ?? undefined,
                 isTyping: true,
             });
         });
 
-        socket.on("typing:stop", ({ channelId }: { channelId: number }) => {
+        socket.on("typing:stop", async ({ channelId }: { channelId: number }) => {
+            const username = await ensureUsername();
             socket.to(`channel:${channelId}`).emit("typing:update", {
                 channelId,
                 userId,
+                username: username ?? undefined,
                 isTyping: false,
             });
         });
