@@ -19,10 +19,7 @@ export class AuthController {
 
       if (!user) {
         // Mettre un faux hash ici plutot que plain vs plain
-        await hasher.verify(
-          password,
-          await hasher.hash(Math.random().toString(36).substr(2, 8)),
-        );
+        await hasher.hash(password);
         return res.status(401).json({
           code: "E_UNAUTHORIZED_ACCESS",
           message: "Les identifiant fournis ne correspondent à aucun compte",
