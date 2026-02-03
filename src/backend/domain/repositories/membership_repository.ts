@@ -9,4 +9,7 @@ export abstract class MembershipRepository {
   abstract get_by_server_id(server_id: number): Promise<Membership[]>;
   abstract get_by_user_id(user_id: number): Promise<Membership[]>;
   abstract save(payload: MembershipProperties): Promise<void>;
+  abstract find_by_user_and_server(user_id: number, server_id: number): Promise<Membership | undefined>;
+  abstract delete_by_user_and_server(user_id: number, server_id: number): Promise<void>;
+  abstract update_role(user_id: number, server_id: number, role_id: number): Promise<void>;
 }
