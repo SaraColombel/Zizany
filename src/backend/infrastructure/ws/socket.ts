@@ -3,10 +3,7 @@ import type http from "http";
 import type { RequestHandler } from "express";
 import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
 
-export function attachSocket(
-  httpServer: http.Server,
-  sessionMiddleware: RequestHandler,
-) {
+export function attachSocket(httpServer: http.Server, sessionMiddleware: RequestHandler) {
   const io = new IOServer(httpServer, {
     cors: {
       origin: "http://localhost:3000",
@@ -30,6 +27,17 @@ export function attachSocket(
 
   io.on("connection", (socket) => {
     const userId = socket.data.userId as number;
+    let cachedUsername: string | null = null;
+
+    const ensureUsername = async () => {
+      if (cachedUsername) return cachedUsername;
+      const user = await prisma.users.findUnique({
+        where: { id: userId },
+        select: { username: true },
+      });
+      cachedUsername = user?.username ?? null;
+      return cachedUsername;
+    };
 
     // Join server room
     socket.on("server:join", async ({ serverId }: { serverId: number }) => {
@@ -37,8 +45,7 @@ export function attachSocket(
       const membership = await prisma.memberships.findFirst({
         where: { server_id: serverId, user_id: userId },
       });
-      if (!membership)
-        return socket.emit("error:permission", { code: "E_FORBIDDEN" });
+      if (!membership) return socket.emit("error:permission", { code: "E_FORBIDDEN" });
 
       socket.join(`server:${serverId}`);
       socket.emit("server:joined", { serverId });
@@ -46,35 +53,35 @@ export function attachSocket(
 
     // Join channel room
     socket.on("channel:join", async ({ channelId }: { channelId: number }) => {
-      const channel = await prisma.channels.findUnique({
-        where: { id: channelId },
-      });
-      if (!channel)
-        return socket.emit("error:not_found", { code: "E_CHANNEL_NOT_FOUND" });
+      const channel = await prisma.channels.findUnique({ where: { id: channelId } });
+      if (!channel) return socket.emit("error:not_found", { code: "E_CHANNEL_NOT_FOUND" });
 
       const membership = await prisma.memberships.findFirst({
         where: { server_id: channel.server_id, user_id: userId },
       });
-      if (!membership)
-        return socket.emit("error:permission", { code: "E_FORBIDDEN" });
+      if (!membership) return socket.emit("error:permission", { code: "E_FORBIDDEN" });
 
       socket.join(`channel:${channelId}`);
       socket.emit("channel:joined", { channelId });
     });
 
     // Typing
-    socket.on("typing:start", ({ channelId }: { channelId: number }) => {
+    socket.on("typing:start", async ({ channelId }: { channelId: number }) => {
+      const username = await ensureUsername();
       socket.to(`channel:${channelId}`).emit("typing:update", {
         channelId,
         userId,
+        username: username ?? undefined,
         isTyping: true,
       });
     });
 
-    socket.on("typing:stop", ({ channelId }: { channelId: number }) => {
+    socket.on("typing:stop", async ({ channelId }: { channelId: number }) => {
+      const username = await ensureUsername();
       socket.to(`channel:${channelId}`).emit("typing:update", {
         channelId,
         userId,
+        username: username ?? undefined,
         isTyping: false,
       });
     });
@@ -82,29 +89,17 @@ export function attachSocket(
     // Message create -> DB -> broadcast
     socket.on(
       "message:create",
-      async ({
-        channelId,
-        content,
-      }: {
-        channelId: number;
-        content: string;
-      }) => {
+      async ({ channelId, content }: { channelId: number; content: string }) => {
         const trimmed = content.trim();
         if (!trimmed) return;
 
-        const channel = await prisma.channels.findUnique({
-          where: { id: channelId },
-        });
-        if (!channel)
-          return socket.emit("error:not_found", {
-            code: "E_CHANNEL_NOT_FOUND",
-          });
+        const channel = await prisma.channels.findUnique({ where: { id: channelId } });
+        if (!channel) return socket.emit("error:not_found", { code: "E_CHANNEL_NOT_FOUND" });
 
         const membership = await prisma.memberships.findFirst({
           where: { server_id: channel.server_id, user_id: userId },
         });
-        if (!membership)
-          return socket.emit("error:permission", { code: "E_FORBIDDEN" });
+        if (!membership) return socket.emit("error:permission", { code: "E_FORBIDDEN" });
 
         const created = await prisma.messages.create({
           data: { channel_id: channelId, user_id: userId, content: trimmed },
