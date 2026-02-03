@@ -128,10 +128,18 @@ export class AuthController {
   }
 
   async me(req: Request, res: Response) {
+    const userId = Number(req.session.user_id);
+    if (!Number.isFinite(userId)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const user = await new PrismaUserRepository().find_by_id(userId);
+
     return res.status(res.statusCode).json({
-      id: req.session.user_id,
-      email: req.session.email,
-      username: req.session.username,
+      id: userId,
+      email: user?.props.email ?? req.session.email ?? null,
+      username: user?.props.username ?? req.session.username ?? null,
+      thumbnail: user?.props.thumbnail ?? null,
     });
   }
 }

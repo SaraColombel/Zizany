@@ -67,11 +67,6 @@ type Server = {
  *   (actual behavior is implemented in NavSecondary)
  */
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "favicon.ico",
-  },
   navSecondary: [
     {
       title: "Servers List",
@@ -110,6 +105,46 @@ export function AppSidebar({
    * AppSidebar only consumes the data.
    */
   const { servers } = useServers()
+  const [user, setUser] = React.useState<{
+    name: string
+    email: string
+    avatar: string | null
+  } | null>(null)
+
+  React.useEffect(() => {
+    let cancelled = false
+    const apiBase =
+      process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4000"
+
+    async function loadUser() {
+      try {
+        const res = await fetch(`${apiBase}/api/auth/me`, {
+          method: "GET",
+          credentials: "include",
+        })
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+        const json = await res.json()
+        if (cancelled) return
+
+        setUser({
+          name: String(json.username ?? "Unknown user"),
+          email: String(json.email ?? ""),
+          avatar: typeof json.thumbnail === "string" ? json.thumbnail : null,
+        })
+      } catch {
+        if (!cancelled) {
+          setUser(null)
+        }
+      }
+    }
+
+    loadUser()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   /**
    * Primary navigation items (one per server).
@@ -160,7 +195,13 @@ export function AppSidebar({
 
       {/* User section */}
       <SidebarFooter>
-        <NavUser user={data.user} />
+        {user ? (
+          <NavUser user={user} />
+        ) : (
+          <div className="px-3 py-4 text-xs text-muted-foreground">
+            Loading profile...
+          </div>
+        )}
       </SidebarFooter>
     </Sidebar>
   )
