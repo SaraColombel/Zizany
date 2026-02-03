@@ -38,7 +38,7 @@ export class PrismaChannelRepository extends ChannelRepository {
     return data.map((chan) => PrismaChannelMapper.toDomain(chan));
   }
 
-  async save(payload: ChannelProperties): Promise<Channel> {
+  async save(payload: Omit<ChannelProperties, "id">): Promise<Channel> {
     const data = await prisma.channels.create({
       data: {
         name: payload.name,

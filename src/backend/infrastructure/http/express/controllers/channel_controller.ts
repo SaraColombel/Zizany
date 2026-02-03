@@ -1,96 +1,96 @@
 import { NextFunction, Request, Response } from "express";
 
 import { PrismaChannelRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_channel_repository";
+import {
+  createChannelValidator,
+  updateChannelValidator,
+} from "@/backend/infrastructure/validators/vine/channel_validator";
+import { ValidationError } from "@vinejs/vine";
 
 export class ChannelController {
-    async all(req: Request, res: Response, next: NextFunction) {
-        try {
-            const serverId = Number(req.params.id);
-            const channels = await new PrismaChannelRepository().get_by_server_id(serverId);
-            return res.json({
-                channels,
-            });
-        } catch (err) {
-            console.log(err);
-            next(err);
-        }
+  async all(req: Request, res: Response, next: NextFunction) {
+    try {
+      const serverId = Number(req.params.id);
+      const channels = await new PrismaChannelRepository().get_by_server_id(
+        serverId,
+      );
+      return res.json({
+        channels,
+      });
+    } catch (err) {
+      console.log(err);
+      next(err);
     }
+  }
 
+  async index(req: Request, res: Response, next: NextFunction) {
+    try {
+      const channelId = Number(req.params.id);
 
-    async index(req: Request, res: Response, next: NextFunction) {
-        try {
-            const channelId = Number(req.params.id);
-
-            const channel = await new PrismaChannelRepository().find_by_id(channelId);
-            return res.json({
-                channel,
-            });
-        } catch (err) {
-            console.log(err);
-            next(err);
-        }
+      const channel = await new PrismaChannelRepository().find_by_id(channelId);
+      return res.json({
+        channel,
+      });
+    } catch (err) {
+      console.log(err);
+      next(err);
     }
+  }
 
-    async create(req: Request, res: Response, next: NextFunction) {
-        try {
-            const serverId = Number(req.params.id);
-            const name = req.body?.name;
+  async create(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { name, server_id } = await createChannelValidator.validate({
+        name: await req.body.name,
+        server_id: parseInt(req.params.id[0]),
+      });
 
+      // TODO: check si channel existe pas deja
+      const channel = await new PrismaChannelRepository().save({
+        name,
+        server_id,
+      });
 
-            if (!serverId || Number.isNaN(serverId)) {
-                return res.status(400).json({ error: "Invalid serverId" })
-            }
-
-            if (!name || typeof name !== "string") {
-                return res.status(400).json({ error: "Channel name is required" })
-            }
-
-            const channel = await new PrismaChannelRepository().save({
-                name,
-                server_id: serverId,
-            } as any)
-
-            return res.status(201).json({ ok: true, channel })
-        } catch (err) {
-            next(err)
-        }
+      return res.status(201).json({ ok: true, channel });
+    } catch (err: any) {
+      if (err instanceof ValidationError) {
+        return res.status(422).json({ err });
+      }
+      next(err);
     }
+  }
 
-    async update(req: Request, res: Response, next: NextFunction) {
-        try {
-            const channelId = Number(req.params.channelId);
-            const name = req.body?.name;
+  async update(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id, name } = await updateChannelValidator.validate({
+        id: parseInt(req.params.id[0]),
+        name: await req.body.name,
+      });
 
-            if (!channelId || Number.isNaN(channelId)) {
-                return res.status(400).json({ error: "Invalid channelId" })
-            }
+      await new PrismaChannelRepository().update(id, {
+        name,
+      });
 
-            if (name && typeof name !== "string") {
-                return res.status(400).json({ error: "Channel name must be a string" })
-            }
-
-            await new PrismaChannelRepository().update(channelId, {
-                name,
-            } as any)
-
-            return res.status(200).json({ ok: true })
-        } catch (err) {
-            next(err)
-        }
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        return res.status(422).json({ err });
+      }
+      next(err);
     }
+  }
 
-    async delete(req: Request, res: Response, next: NextFunction) {
-        try {
-            const channelId = Number(req.params.channelId);
-            if (!channelId || Number.isNaN(channelId)) {
-                return res.status(400).json({ error: "Invalid channelId" })
-            }
+  async delete(req: Request, res: Response, next: NextFunction) {
+    try {
+      const channelId = Number(req.params.channelId);
+      if (!channelId || Number.isNaN(channelId)) {
+        return res.status(400).json({ error: "Invalid channelId" });
+      }
 
-            await new PrismaChannelRepository().delete(channelId)
+      await new PrismaChannelRepository().delete(channelId);
 
-            return res.status(200).json({ ok: true })
-        } catch (err) {
-            next(err)
-        }
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      next(err);
     }
+  }
 }

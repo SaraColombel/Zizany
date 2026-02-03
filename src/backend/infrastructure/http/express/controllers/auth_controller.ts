@@ -115,15 +115,20 @@ export class AuthController {
 
   async logout(req: Request, res: Response, next: NextFunction) {
     req.session.destroy((error) => {
-      if (error)
+      if (error) {
         return res
           .status(500)
           .json({ code: "E_DISCONNECT_UNKNOWN", error: error });
+      }
 
-      res.clearCookie("connect.sid"); // Nom par défaut du cookie express-session
-    });
-    return res.status(200).json({
-      code: "DISCONNECTED",
+      res.clearCookie("connect.sid", {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: false,
+      });
+      return res.status(200).json({
+        code: "DISCONNECTED",
+      });
     });
   }
 
