@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { PrismaServerRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_server_repository";
 import { PrismaMembershipRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_membership_repository";
+import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client"
 
 const ROLE_OWNER = 1;
 export class ServerController {
@@ -107,7 +108,7 @@ export class ServerController {
       const userId = Number(req.session.user_id);
 
       if (!Number.isFinite(serverId)) {
-        return res.status(400).json({ message: "Invalid server id "});
+        return res.status(400).json({ message: "Invalid server id"});
       }
 
       const callerMembership = await new PrismaMembershipRepository().find_by_user_and_server(userId, serverId);
@@ -115,7 +116,27 @@ export class ServerController {
         return res.status(403).json({ message: "Only owner can delete server" });
       }
 
-      await new PrismaServerRepository().delete(serverId);
+      await prisma.$transaction(async (tx) => {
+        // delete messages in all channels of the server
+        await tx.messages.deleteMany({
+          where: { channel: { server_id: serverId } },
+        });
+
+        // delete channels
+        await tx.channels.deleteMany({
+          where: { server_id: serverId },
+        });
+
+        // delete memberships
+        await tx.memberships.deleteMany({
+          where: { server_id: serverId },
+        });
+
+        // delete server
+        await tx.servers.delete({
+          where: { id: serverId },
+        });
+      });
       return res.status(204).send();
     } catch (err) {
       next(err);
