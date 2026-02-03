@@ -22,12 +22,17 @@ type Member = {
 }
 
 export function ServerMembersSidebar({ serverId }: { serverId: string }) {
+  const OFFLINE_GRACE_MS = 1500
   const [open, setOpen] = React.useState(true)
   const [members, setMembers] = React.useState<Member[]>([])
   const [loading, setLoading] = React.useState<boolean>(true)
   const [error, setError] = React.useState<string | null>(null)
   const [onlineUserIds, setOnlineUserIds] = React.useState<number[]>([])
+  const [presenceReady, setPresenceReady] = React.useState(false)
   const socketRef = React.useRef<Socket | null>(null)
+  const offlineTimersRef = React.useRef<Map<number, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  )
 
   const onlineSet = React.useMemo(() => {
     return new Set(onlineUserIds)
@@ -120,6 +125,9 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
 
   React.useEffect(() => {
     setOnlineUserIds([])
+    setPresenceReady(false)
+    offlineTimersRef.current.forEach((timer) => clearTimeout(timer))
+    offlineTimersRef.current.clear()
     const socket = io(process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:4000", {
       withCredentials: true,
       transports: ["websocket"],
@@ -135,14 +143,39 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
       "presence:update",
       (payload: { serverId: number; onlineUserIds: number[] }) => {
         if (Number(payload.serverId) !== Number(serverId)) return
-        setOnlineUserIds(
+        const nextOnline = new Set(
           Array.isArray(payload.onlineUserIds) ? payload.onlineUserIds : [],
         )
+        setOnlineUserIds((prev) => {
+          const merged = new Set(prev)
+
+          nextOnline.forEach((id) => {
+            const timer = offlineTimersRef.current.get(id)
+            if (timer) {
+              clearTimeout(timer)
+              offlineTimersRef.current.delete(id)
+            }
+            merged.add(id)
+          })
+
+          merged.forEach((id) => {
+            if (nextOnline.has(id)) return
+            if (offlineTimersRef.current.has(id)) return
+            const timer = setTimeout(() => {
+              setOnlineUserIds((current) => current.filter((x) => x !== id))
+              offlineTimersRef.current.delete(id)
+            }, OFFLINE_GRACE_MS)
+            offlineTimersRef.current.set(id, timer)
+          })
+
+          return Array.from(merged)
+        })
+        setPresenceReady(true)
       },
     )
 
     socket.on("disconnect", () => {
-      setOnlineUserIds([])
+      setPresenceReady(false)
     })
 
     return () => {
@@ -151,6 +184,8 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
       socket.off("disconnect")
       socket.disconnect()
       socketRef.current = null
+      offlineTimersRef.current.forEach((timer) => clearTimeout(timer))
+      offlineTimersRef.current.clear()
     }
   }, [serverId])
 
@@ -195,7 +230,24 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
           {!loading && !error && members.length === 0 && (
             <div className="text-xs text-muted-foreground">No members yet.</div>
           )}
-          {!loading && !error && (
+          {!loading && !error && !presenceReady && (
+            <>
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Membres
+              </div>
+              {members.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted"
+                >
+                  <IconUsers className="h-4 w-4" />
+                  <span>{m.user?.username ?? "Unknown user"}</span>
+                </div>
+              ))}
+            </>
+          )}
+
+          {!loading && !error && presenceReady && (
             <>
               <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 En ligne ({onlineMembers.length})
