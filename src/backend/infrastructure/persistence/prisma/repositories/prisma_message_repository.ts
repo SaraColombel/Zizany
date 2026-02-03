@@ -41,6 +41,7 @@ export class PrismaMessageRepository extends MessageRepository {
   async get_by_channel(channel_id: number): Promise<MessageDTO[]> {
     const data = await prisma.messages.findMany({
       where: { channel_id },
+      orderBy: { created_at: "asc" },
       include: {
         user: {
           select: {

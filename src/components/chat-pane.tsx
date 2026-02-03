@@ -298,7 +298,6 @@ export function ChatPane({
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ content }),
-          credentials: "include",
         },
       );
 
