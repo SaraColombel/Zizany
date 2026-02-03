@@ -11,14 +11,14 @@
  * - controlled form inputs
  * - file validation
  * - image previews
- * - multipart/form-data payload
+ * - JSON payload (name + optional data URLs for images)
  * - success / error feedback
  * Once the backend is connected, only the fetch() endpoint needs adjustment.
  */
 
 import * as React from "react";
 import { type Icon } from "@tabler/icons-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 
 import {
@@ -48,6 +48,7 @@ import {
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useServers } from "@/components/servers-context";
 
 type NavItem = {
   title: string;
@@ -78,6 +79,15 @@ function humanBytes(bytes: number) {
   return `${b.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("Failed to read image file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export function NavSecondary({
   items,
   ...props
@@ -85,7 +95,9 @@ export function NavSecondary({
   items: NavItem[];
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const pathname = usePathname();
+  const router = useRouter();
   const activeIndex = items.findIndex((item) => pathname === item.url);
+  const { refresh } = useServers();
 
   /**
    * Drawer open state (Create server form)
@@ -247,10 +259,10 @@ export function NavSecondary({
    *
    * Backend :
    * POST /api/servers
-   * multipart/form-data:
+   * JSON:
    *  - name: string
-   *  - banner: File (optional)
-   *  - thumbnail: File (optional)
+   *  - banner: string (optional, data URL)
+   *  - thumbnail: string (optional, data URL)
    */
   async function onCreate() {
     setApiError(null);
@@ -261,16 +273,21 @@ export function NavSecondary({
     try {
       setIsSubmitting(true);
 
-      const fd = new FormData();
-      fd.append("name", trimmedName);
-      if (bannerFile) fd.append("banner", bannerFile);
-      if (thumbnailFile) fd.append("thumbnail", thumbnailFile);
+      const payload: {
+        name: string;
+        banner?: string | null;
+        thumbnail?: string | null;
+      } = { name: trimmedName };
+
+      if (bannerFile) payload.banner = await fileToDataUrl(bannerFile);
+      if (thumbnailFile) payload.thumbnail = await fileToDataUrl(thumbnailFile);
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/servers`,
         {
           method: "POST",
-          body: fd,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
           credentials: "include",
         },
       );
@@ -293,8 +310,16 @@ export function NavSecondary({
        */
       setSuccessMsg("Server successfully created");
 
+      const json = await res.json().catch(() => null);
+      const serverId = Number(json?.server_id ?? json?.server?.id);
+
+      await refresh();
       setOpenCreate(false);
       resetForm();
+
+      if (Number.isFinite(serverId)) {
+        router.push(`/servers/${serverId}`);
+      }
     } catch (e) {
       /**
        * Natural failure path when backend is missing or unreachable.

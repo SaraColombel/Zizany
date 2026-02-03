@@ -51,8 +51,30 @@ export class PrismaServerRepository extends ServerRepository {
   }
 
   async delete(id: number): Promise<void> {
-    await prisma.servers.delete({
-      where: { id },
+    await prisma.$transaction(async (tx) => {
+      const channels = await tx.channels.findMany({
+        where: { server_id: id },
+        select: { id: true },
+      });
+      const channelIds = channels.map((channel) => channel.id);
+
+      if (channelIds.length > 0) {
+        await tx.messages.deleteMany({
+          where: { channel_id: { in: channelIds } },
+        });
+      }
+
+      await tx.channels.deleteMany({
+        where: { server_id: id },
+      });
+
+      await tx.memberships.deleteMany({
+        where: { server_id: id },
+      });
+
+      await tx.servers.delete({
+        where: { id },
+      });
     });
   }
 }
