@@ -57,19 +57,28 @@ export class ServerController {
               user_id: userId,
               server_id: { in: serverIds },
             },
-            select: { server_id: true },
+            select: { server_id: true, role_id: true },
           });
       const joinedSet = new Set(userMemberships.map((row) => row.server_id));
+      const roleByServer = new Map(
+        userMemberships.map((row) => [row.server_id, row.role_id]),
+      );
 
-      const payload = servers.map((server) => ({
-        id: server.id,
-        name: server.name,
-        thumbnail: server.thumbnail ?? null,
-        banner: server.banner ?? null,
-        members: membersByServer.get(server.id) ?? 0,
-        onlineMembers: onlineByServer.get(server.id) ?? 0,
-        isMember: joinedSet.has(server.id),
-      }));
+      const payload = servers.map((server) => {
+        const roleId = roleByServer.get(server.id) ?? null;
+        const isMember = joinedSet.has(server.id);
+        return {
+          id: server.id,
+          name: server.name,
+          thumbnail: server.thumbnail ?? null,
+          banner: server.banner ?? null,
+          members: membersByServer.get(server.id) ?? 0,
+          onlineMembers: onlineByServer.get(server.id) ?? 0,
+          isMember,
+          canLeave: isMember && roleId !== ROLE_OWNER,
+          currentUserRoleId: roleId,
+        };
+      });
 
       return res.json({
         servers: payload,
