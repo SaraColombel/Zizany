@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
 import { PrismaMembershipRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_membership_repository";
 import { PrismaServerRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_server_repository";
+import { getSocketServer } from "@/backend/infrastructure/ws/socket";
 
 const ROLE_OWNER = 1;
 const ROLE_ADMIN = 2;
@@ -80,6 +81,26 @@ export class MembershipController {
         role_id: ROLE_MEMBER,
       });
 
+      const username =
+        typeof req.session.username === "string"
+          ? req.session.username
+          : (
+            await prisma.users.findUnique({
+              where: { id: userId },
+              select: { username: true },
+            })
+          )?.username ??
+          `User ${userId}`;
+
+      const io = getSocketServer();
+      if (io) {
+        io.to(`server:${serverId}`).emit("server:member_joined", {
+          serverId,
+          userId,
+          username,
+        });
+      }
+
       return res.status(201).json({ ok: true });
     } catch (err) {
       next(err);
@@ -105,6 +126,27 @@ export class MembershipController {
       }
 
       await new PrismaMembershipRepository().delete_by_user_and_server(userId, serverId);
+
+      const username =
+        typeof req.session.username === "string"
+          ? req.session.username
+          : (
+            await prisma.users.findUnique({
+              where: { id: userId },
+              select: { username: true },
+            })
+          )?.username ??
+          `User ${userId}`;
+
+      const io = getSocketServer();
+      if (io) {
+        io.to(`server:${serverId}`).emit("server:member_left", {
+          serverId,
+          userId,
+          username,
+        });
+      }
+
       return res.status(204).send();
     } catch (err) {
       next(err);
