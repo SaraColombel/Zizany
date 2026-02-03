@@ -1,25 +1,22 @@
-"use client"
+"use client";
 
-import Image from "next/image"
-import Link from "next/link"
-import { useServers } from "@/components/servers-context"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import Image from "next/image";
+import Link from "next/link";
+import { useServers } from "@/components/servers-context";
+import { Button } from "@/components/ui/button";
+import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function SectionCards() {
-  const { servers, error } = useServers()
+  const { servers, error } = useServers();
 
   if (error) {
-    return <div className="px-4 text-sm text-red-500">Failed to load servers</div>
+    return (
+      <div className="px-4 text-sm text-red-500">Failed to load servers</div>
+    );
   }
 
   if (servers.length === 0) {
-    return <div className="px-4 text-sm text-muted-foreground">No servers</div>
+    return <div className="px-4 text-sm text-muted-foreground">No servers</div>;
   }
 
   return (
@@ -50,14 +47,12 @@ export function SectionCards() {
                 </div> */}
               </div>
               <Button size="sm" variant="outline" asChild>
-                <Link href={`/servers/${server.id}`}>
-                  Rejoindre
-                </Link>
+                <Link href={`/servers/${server.id}`}>Rejoindre</Link>
               </Button>
             </CardFooter>
           </Card>
-        )
+        );
       })}
     </div>
-  )
+  );
 }

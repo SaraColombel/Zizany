@@ -10,4 +10,18 @@ export class AuthMiddleware {
       message: "Vous devez être authentifié pour accéder à cette route",
     });
   };
+
+  silent = (req: Request, res: Response, next: NextFunction) => {
+    if (
+      req.session &&
+      req.session.user_id &&
+      (req.url === "/login" || "/signup")
+    ) {
+      return res.status(401).json({
+        code: "E_UNAUTHORIZED_ACCESS",
+        message: "User already logged in",
+      });
+    }
+    return next();
+  };
 }

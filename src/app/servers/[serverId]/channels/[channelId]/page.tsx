@@ -1,37 +1,49 @@
-import { cookies } from "next/headers"
+import { cookies } from "next/headers";
 
-import { ChatPane } from "@/components/chat-pane"
+import { ChatPane } from "@/components/chat-pane";
+import { redirect } from "next/navigation";
 
 type ServerContext = {
-  isAdmin?: boolean
-  isOwner?: boolean
-  currentUserId?: number | string | null
-  currentUserName?: string | null
-}
+  isAdmin?: boolean;
+  isOwner?: boolean;
+  currentUserId?: number | string | null;
+  currentUserName?: string | null;
+};
 
 export default async function ChannelPage({
   params,
 }: {
-  params: Promise<{ serverId: string; channelId: string }>
+  params: Promise<{ serverId: string; channelId: string }>;
 }) {
-  const { serverId, channelId } = await params
-
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
   const cookieStore = cookies();
   const cookieHeader = (await cookieStore).toString();
-  let serverContext: ServerContext = {}
+
+  const isAuth = await fetch(`${apiBase}/api/auth/me`, {
+    headers: {
+      Cookie: cookieHeader,
+    },
+    cache: "no-store",
+  });
+
+  if (isAuth.status === 401) {
+    return redirect("/auth/login");
+  }
+
+  const { serverId, channelId } = await params;
+  let serverContext: ServerContext = {};
   try {
     const res = await fetch(`${apiBase}/api/servers/${serverId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        cookie: cookieHeader,
+        "cookie": cookieHeader,
       },
       cache: "no-store",
-    })
+    });
 
     if (res.ok) {
-      serverContext = await res.json()
+      serverContext = await res.json();
     }
   } catch {
     // graceful fallback; user will just see default labels
@@ -42,7 +54,7 @@ export default async function ChannelPage({
     isOwner = false,
     currentUserId = null,
     currentUserName = null,
-  } = serverContext
+  } = serverContext;
 
   return (
     <ChatPane
@@ -52,5 +64,5 @@ export default async function ChannelPage({
       currentUserName={currentUserName ?? undefined}
       canModerateOthers={isAdmin || isOwner}
     />
-  )
+  );
 }

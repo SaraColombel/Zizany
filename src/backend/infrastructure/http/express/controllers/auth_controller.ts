@@ -19,10 +19,7 @@ export class AuthController {
 
       if (!user) {
         // Mettre un faux hash ici plutot que plain vs plain
-        await hasher.verify(
-          password,
-          await hasher.hash(Math.random().toString(36).substr(2, 8)),
-        );
+        await hasher.hash(password);
         return res.status(401).json({
           code: "E_UNAUTHORIZED_ACCESS",
           message: "Les identifiant fournis ne correspondent à aucun compte",
@@ -127,6 +124,14 @@ export class AuthController {
     });
     return res.status(200).json({
       code: "DISCONNECTED",
+    });
+  }
+
+  async me(req: Request, res: Response) {
+    return res.status(res.statusCode).json({
+      id: req.session.user_id,
+      email: req.session.email,
+      username: req.session.username,
     });
   }
 }
