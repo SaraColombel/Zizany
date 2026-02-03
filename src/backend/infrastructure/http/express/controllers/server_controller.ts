@@ -1,12 +1,55 @@
 import { NextFunction, Request, Response } from "express";
 import { PrismaServerRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_server_repository";
 import { PrismaMembershipRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_membership_repository";
+import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
 export class ServerController {
   async all(req: Request, res: Response, next: NextFunction) {
     try {
-      const servers = await new PrismaServerRepository().get_all();
+      const userId = req.session.user_id;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const servers = await prisma.servers.findMany({
+        orderBy: { id: "asc" },
+      });
+
+      const serverIds = servers.map((server) => server.id);
+      const membershipCounts =
+        serverIds.length === 0
+          ? []
+          : await prisma.memberships.groupBy({
+              by: ["server_id"],
+              where: { server_id: { in: serverIds } },
+              _count: { _all: true },
+            });
+      const membersByServer = new Map(
+        membershipCounts.map((row) => [row.server_id, row._count._all]),
+      );
+
+      const userMemberships =
+        serverIds.length === 0
+          ? []
+          : await prisma.memberships.findMany({
+              where: {
+                user_id: userId,
+                server_id: { in: serverIds },
+              },
+              select: { server_id: true },
+            });
+      const joinedSet = new Set(userMemberships.map((row) => row.server_id));
+
+      const payload = servers.map((server) => ({
+        id: server.id,
+        name: server.name,
+        thumbnail: server.thumbnail ?? null,
+        banner: server.banner ?? null,
+        members: membersByServer.get(server.id) ?? 0,
+        isMember: joinedSet.has(server.id),
+      }));
+
       return res.json({
-        servers,
+        servers: payload,
       });
     } catch (err) {
       console.log(err);
