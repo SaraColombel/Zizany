@@ -1,4 +1,6 @@
 "use client"
+import * as React from "react"
+import { IconSettings } from "@tabler/icons-react"
 import { useServers } from "@/components/servers-context"
 
 import { usePathname } from "next/navigation"
@@ -9,6 +11,7 @@ import { Button } from "@/components/ui/button"
 export function SiteHeader() {
   const pathname = usePathname()
   const { servers } = useServers()
+  const [isOwner, setIsOwner] = React.useState(false)
 
   // match /servers ou /servers/srv-3 ou /servers/srv-3/...
   const parts = pathname.split("/").filter(Boolean)
@@ -22,12 +25,68 @@ export function SiteHeader() {
       ? "Server"
       : "Servers List"
 
+  React.useEffect(() => {
+    let cancelled = false
+    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
+
+    async function loadOwnerFlag() {
+      if (!serverId) {
+        setIsOwner(false)
+        return
+      }
+
+      setIsOwner(false)
+      try {
+        const res = await fetch(`${apiBase}/api/servers/${serverId}`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        })
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+        const json = await res.json()
+        if (!cancelled) {
+          setIsOwner(Boolean(json?.isOwner))
+        }
+      } catch {
+        if (!cancelled) {
+          setIsOwner(false)
+        }
+      }
+    }
+
+    loadOwnerFlag()
+    return () => {
+      cancelled = true
+    }
+  }, [serverId])
+
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
         <SidebarTrigger className="-ml-1 cursor-pointer [&_svg]:cursor-pointer" />
         <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
-        <h1 className="text-base font-medium">{title}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-base font-medium">{title}</h1>
+          {serverId && isOwner && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 cursor-pointer"
+              aria-label="Server options"
+              onClick={() => {
+                window.alert(
+                  "Server options are not wired to the backend yet.\n" +
+                    "Later, this button will open the server settings."
+                )
+              }}
+            >
+              <IconSettings className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
 
         {/* Create invitation button aligned to the right when on a specific server */}
         {serverId && (

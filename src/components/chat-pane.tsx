@@ -56,6 +56,9 @@ export function ChatPane({
   canModerateOthers?: boolean;
 }) {
   const [messages, setMessages] = React.useState<UiMessage[]>([]);
+  const [typingUsers, setTypingUsers] = React.useState<
+    Array<{ userId: number; username?: string }>
+  >([]);
 
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -200,6 +203,7 @@ export function ChatPane({
   }, [serverId, channelId]);
 
   React.useEffect(() => {
+    setTypingUsers([]);
     const socket = io(process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:4000", {
       withCredentials: true,
       transports: ["websocket"],
@@ -219,6 +223,7 @@ export function ChatPane({
 
     socket.on("disconnect", (reason) => {
       console.log("WS disconnected", reason);
+      setTypingUsers([]);
     });
 
     socket.on("message:new", (msg:any) => {
@@ -227,6 +232,7 @@ export function ChatPane({
 
       const uiMsg: UiMessage = {
         id: String(msg.id),
+        authorId: msg.user?.id,
         authorName: msg.user?.username ?? `User ${msg.user?.id}`,
         content: String(msg.content ?? ""),
         createdAt,
@@ -236,11 +242,41 @@ export function ChatPane({
       setMessages((prev) => [...prev, uiMsg]);
     });
 
+    socket.on(
+      "typing:update",
+      (payload: {
+        channelId: number;
+        userId: number;
+        username?: string;
+        isTyping: boolean;
+      }) => {
+        if (Number(payload.channelId) !== Number(channelId)) return;
+        setTypingUsers((prev) => {
+          if (payload.isTyping) {
+            const existing = prev.find((u) => u.userId === payload.userId);
+            if (existing) {
+              return prev.map((u) =>
+                u.userId === payload.userId
+                  ? { ...u, username: payload.username ?? u.username }
+                  : u,
+              );
+            }
+            return [
+              ...prev,
+              { userId: payload.userId, username: payload.username },
+            ];
+          }
+          return prev.filter((u) => u.userId !== payload.userId);
+        });
+      },
+    );
+
     return () => {
       socket.off("connect");
       socket.off("connect_error");
       socket.off("disconnect");
       socket.off("message:new");
+      socket.off("typing:update");
       socket.disconnect();
       socketRef.current = null;
     };
@@ -400,6 +436,22 @@ export function ChatPane({
     setMessages((prev) => prev.filter((m) => m.id !== message.id));
   }
 
+  const typingLabel = React.useMemo(() => {
+    if (typingUsers.length === 0) return null;
+    const names = typingUsers.map(
+      (u) => u.username ?? `User ${u.userId}`,
+    );
+    if (names.length === 1) {
+      return `${names[0]} is typing...`;
+    }
+    if (names.length === 2) {
+      return `${names[0]} and ${names[1]} are typing...`;
+    }
+    return `${names.slice(0, 2).join(", ")} and ${
+      names.length - 2
+    } others are typing...`;
+  }, [typingUsers]);
+
   return (
     <div className="flex h-full flex-col">
       {/* Channel header */}
@@ -421,9 +473,30 @@ export function ChatPane({
         />
       </div>
 
+      {typingLabel && (
+        <div className="px-3 pb-2 text-xs text-muted-foreground">
+          {typingLabel}
+        </div>
+      )}
+
       {/* Message composer */}
       <div className="border-t p-3">
-        <MessageComposer onSend={handleSend} disabled={!!error} />
+        <MessageComposer
+          onSend={handleSend}
+          onTypingStart={() => {
+            const socket = socketRef.current;
+            if (socket?.connected) {
+              socket.emit("typing:start", { channelId: Number(channelId) });
+            }
+          }}
+          onTypingStop={() => {
+            const socket = socketRef.current;
+            if (socket?.connected) {
+              socket.emit("typing:stop", { channelId: Number(channelId) });
+            }
+          }}
+          disabled={!!error}
+        />
       </div>
     </div>
   );
