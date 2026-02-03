@@ -3,6 +3,25 @@ import type http from "http";
 import type { RequestHandler } from "express";
 import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
 
+const onlineUsers = new Map<number, number>();
+
+function markOnline(userId: number) {
+  const next = (onlineUsers.get(userId) ?? 0) + 1;
+  onlineUsers.set(userId, next);
+  return next === 1;
+}
+
+function markOffline(userId: number) {
+  const current = onlineUsers.get(userId);
+  if (!current) return false;
+  if (current <= 1) {
+    onlineUsers.delete(userId);
+    return true;
+  }
+  onlineUsers.set(userId, current - 1);
+  return false;
+}
+
 export function attachSocket(httpServer: http.Server, sessionMiddleware: RequestHandler) {
   const io = new IOServer(httpServer, {
     cors: {
@@ -28,6 +47,31 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
   io.on("connection", (socket) => {
     const userId = socket.data.userId as number;
     let cachedUsername: string | null = null;
+    const emitPresence = async (serverId: number) => {
+      const members = await prisma.memberships.findMany({
+        where: { server_id: serverId },
+        select: { user_id: true },
+      });
+      const onlineSet = new Set(onlineUsers.keys());
+      const onlineUserIds = members
+        .map((m) => m.user_id)
+        .filter((id) => onlineSet.has(id));
+      io.to(`server:${serverId}`).emit("presence:update", {
+        serverId,
+        onlineUserIds,
+      });
+    };
+
+    const emitPresenceForUserServers = async () => {
+      const memberships = await prisma.memberships.findMany({
+        where: { user_id: userId },
+        select: { server_id: true },
+      });
+      const serverIds = Array.from(
+        new Set(memberships.map((m) => m.server_id)),
+      );
+      await Promise.all(serverIds.map((serverId) => emitPresence(serverId)));
+    };
 
     const ensureUsername = async () => {
       if (cachedUsername) return cachedUsername;
@@ -39,6 +83,13 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
       return cachedUsername;
     };
 
+    const becameOnline = markOnline(userId);
+    if (becameOnline) {
+      emitPresenceForUserServers().catch((err) => {
+        console.error("presence update failed", err);
+      });
+    }
+
     // Join server room
     socket.on("server:join", async ({ serverId }: { serverId: number }) => {
       // check membership
@@ -49,6 +100,7 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
 
       socket.join(`server:${serverId}`);
       socket.emit("server:joined", { serverId });
+      await emitPresence(serverId);
     });
 
     // Join channel room
@@ -120,6 +172,15 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
         socket.to(`channel:${channelId}`).emit("message:new", dto);
       },
     );
+
+    socket.on("disconnect", () => {
+      const becameOffline = markOffline(userId);
+      if (becameOffline) {
+        emitPresenceForUserServers().catch((err) => {
+          console.error("presence update failed", err);
+        });
+      }
+    });
   });
 
   return io;

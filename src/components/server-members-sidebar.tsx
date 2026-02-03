@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { IconUsers, IconChevronLeft, IconChevronRight } from "@tabler/icons-react"
+import { io, type Socket } from "socket.io-client"
 import { cn } from "@/lib/utils"
 
 type Member = {
@@ -25,6 +26,20 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
   const [members, setMembers] = React.useState<Member[]>([])
   const [loading, setLoading] = React.useState<boolean>(true)
   const [error, setError] = React.useState<string | null>(null)
+  const [onlineUserIds, setOnlineUserIds] = React.useState<number[]>([])
+  const socketRef = React.useRef<Socket | null>(null)
+
+  const onlineSet = React.useMemo(() => {
+    return new Set(onlineUserIds)
+  }, [onlineUserIds])
+
+  const onlineMembers = React.useMemo(() => {
+    return members.filter((m) => onlineSet.has(m.user_id))
+  }, [members, onlineSet])
+
+  const offlineMembers = React.useMemo(() => {
+    return members.filter((m) => !onlineSet.has(m.user_id))
+  }, [members, onlineSet])
 
   React.useEffect(() => {
     let cancelled = false
@@ -103,6 +118,42 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
     }
   }, [serverId])
 
+  React.useEffect(() => {
+    setOnlineUserIds([])
+    const socket = io(process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:4000", {
+      withCredentials: true,
+      transports: ["websocket"],
+    })
+
+    socketRef.current = socket
+
+    socket.on("connect", () => {
+      socket.emit("server:join", { serverId: Number(serverId) })
+    })
+
+    socket.on(
+      "presence:update",
+      (payload: { serverId: number; onlineUserIds: number[] }) => {
+        if (Number(payload.serverId) !== Number(serverId)) return
+        setOnlineUserIds(
+          Array.isArray(payload.onlineUserIds) ? payload.onlineUserIds : [],
+        )
+      },
+    )
+
+    socket.on("disconnect", () => {
+      setOnlineUserIds([])
+    })
+
+    return () => {
+      socket.off("connect")
+      socket.off("presence:update")
+      socket.off("disconnect")
+      socket.disconnect()
+      socketRef.current = null
+    }
+  }, [serverId])
+
   return (
     <aside
       className={[
@@ -144,17 +195,39 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
           {!loading && !error && members.length === 0 && (
             <div className="text-xs text-muted-foreground">No members yet.</div>
           )}
-          {!loading &&
-            !error &&
-            members.map((m) => (
-              <div
-                key={m.id}
-                className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted"
-              >
-                <IconUsers className="h-4 w-4" />
-                <span>{m.user?.username ?? "Unknown user"}</span>
+          {!loading && !error && (
+            <>
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                En ligne ({onlineMembers.length})
               </div>
-            ))}
+              {onlineMembers.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted"
+                >
+                  <IconUsers className="h-4 w-4" />
+                  <span>{m.user?.username ?? "Unknown user"}</span>
+                  <span
+                    className="ml-auto h-2 w-2 rounded-full bg-emerald-500"
+                    aria-label="Online"
+                  />
+                </div>
+              ))}
+
+              <div className="pt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Hors ligne ({offlineMembers.length})
+              </div>
+              {offlineMembers.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center gap-2 rounded px-2 py-1 text-muted-foreground"
+                >
+                  <IconUsers className="h-4 w-4" />
+                  <span>{m.user?.username ?? "Unknown user"}</span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </aside>
