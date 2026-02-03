@@ -9,11 +9,13 @@ export type Server = {
   banner: string | null;
   members: number;
   onlineMembers: number;
+  isMember: boolean;
 };
 
 type ServersContextType = {
   servers: Server[];
   error: string | null;
+  refresh: () => Promise<void>;
 };
 
 const ServersContext = React.createContext<ServersContextType | null>(null);
@@ -21,18 +23,8 @@ const ServersContext = React.createContext<ServersContextType | null>(null);
 export function ServersProvider({ children }: { children: React.ReactNode }) {
   const [servers, setServers] = React.useState<Server[]>([]);
   const [error, setError] = React.useState<string | null>(null);
-  const cancelledRef = React.useRef(false);
-  const inFlightRef = React.useRef(false);
-  const pendingRef = React.useRef(false);
 
-  const load = React.useCallback(async () => {
-    if (cancelledRef.current) return;
-    if (inFlightRef.current) {
-      pendingRef.current = true;
-      return;
-    }
-    inFlightRef.current = true;
-    pendingRef.current = false;
+  const refresh = React.useCallback(async () => {
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/servers`,
@@ -51,7 +43,7 @@ export function ServersProvider({ children }: { children: React.ReactNode }) {
        *
        * Supports both:
        * - array of domain entities serialized as `{ props: { ... } }`
-       * - array of plain objects `{ id, name, thumbnail, banner, members, onlineMembers }`
+       * - array of plain objects `{ id, name, thumbnail, banner, members }`
        */
       const normalized: Server[] = (json.servers ?? [])
         .map((raw: any) => {
@@ -71,53 +63,31 @@ export function ServersProvider({ children }: { children: React.ReactNode }) {
                 ? base.members
                 : 0,
             onlineMembers:
-              typeof base.onlineMembers === "number" &&
-              base.onlineMembers >= 0
+              typeof base.onlineMembers === "number" && base.onlineMembers >= 0
                 ? base.onlineMembers
                 : 0,
+            isMember: Boolean(
+              (raw && typeof raw.isMember !== "undefined"
+                ? raw.isMember
+                : base.isMember) ?? false,
+            ),
           } satisfies Server;
         })
         .filter((s: Server | null): s is Server => s !== null);
 
-      if (!cancelledRef.current) setServers(normalized);
+      setServers(normalized);
+      setError(null);
     } catch (e) {
-      if (!cancelledRef.current) {
-        setError(e instanceof Error ? e.message : "Fetch failed");
-      }
-    } finally {
-      inFlightRef.current = false;
-      if (pendingRef.current && !cancelledRef.current) {
-        pendingRef.current = false;
-        load();
-      }
+      setError(e instanceof Error ? e.message : "Fetch failed");
     }
   }, []);
 
   React.useEffect(() => {
-    cancelledRef.current = false;
-    load();
-    const interval = setInterval(load, 15000);
-    return () => {
-      cancelledRef.current = true;
-      clearInterval(interval);
-    };
-  }, [load]);
-
-  React.useEffect(() => {
-    function handlePresence() {
-      load();
-    }
-
-    window.addEventListener("presence:connected", handlePresence);
-    window.addEventListener("presence:disconnected", handlePresence);
-    return () => {
-      window.removeEventListener("presence:connected", handlePresence);
-      window.removeEventListener("presence:disconnected", handlePresence);
-    };
-  }, [load]);
+    refresh().catch(() => null);
+  }, [refresh]);
 
   return (
-    <ServersContext.Provider value={{ servers, error }}>
+    <ServersContext.Provider value={{ servers, error, refresh }}>
       {children}
     </ServersContext.Provider>
   );

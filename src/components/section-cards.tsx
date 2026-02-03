@@ -1,13 +1,29 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
-import { useServers } from "@/components/servers-context";
-import { Button } from "@/components/ui/button";
-import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import * as React from "react"
+import Image from "next/image"
+import { useRouter } from "next/navigation"
+import { useServers } from "@/components/servers-context"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 
 export function SectionCards() {
-  const { servers, error } = useServers();
+  const router = useRouter()
+  const { servers, error, refresh } = useServers()
+  const [joiningIds, setJoiningIds] = React.useState<Set<number>>(new Set())
+  const [joinedIds, setJoinedIds] = React.useState<Set<number>>(new Set())
+  const [joinErrors, setJoinErrors] = React.useState<Record<number, string>>(
+    {},
+  )
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
+  const availableServers = servers.filter(
+    (server) => !server.isMember && !joinedIds.has(server.id),
+  )
 
   if (error) {
     return (
@@ -15,13 +31,13 @@ export function SectionCards() {
     );
   }
 
-  if (servers.length === 0) {
-    return <div className="px-4 text-sm text-muted-foreground">No servers</div>;
+  if (availableServers.length === 0) {
+    return <div className="px-4 text-sm text-muted-foreground">No servers</div>
   }
 
   return (
     <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
-      {servers.map((server) => {
+      {availableServers.map((server) => {
         return (
           <Card key={server.id} className="@container/card">
             <CardHeader>
@@ -52,14 +68,76 @@ export function SectionCards() {
                     </span>
                   </span>
                 </div>
-                {/* <div className="text-muted-foreground">
-                  {server.subtitle}
-                </div> */}
               </div>
-              <Button size="sm" variant="outline" asChild>
-                <Link href={`/servers/${server.id}`}>Rejoindre</Link>
+              <Button
+                size="sm"
+                variant="outline"
+                className="cursor-pointer"
+                disabled={
+                  joiningIds.has(server.id) || joinedIds.has(server.id)
+                }
+                onClick={async () => {
+                  setJoinErrors((prev) => {
+                    const next = { ...prev }
+                    delete next[server.id]
+                    return next
+                  })
+                  setJoiningIds((prev) => {
+                    const next = new Set(prev)
+                    next.add(server.id)
+                    return next
+                  })
+
+                  try {
+                    const res = await fetch(
+                      `${apiBase}/api/servers/${server.id}/join`,
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                      },
+                    )
+
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => null)
+                      setJoinErrors((prev) => ({
+                        ...prev,
+                        [server.id]:
+                          data?.message ??
+                          `Failed to join (HTTP ${res.status})`,
+                      }))
+                      return
+                    }
+
+                    setJoinedIds((prev) => {
+                      const next = new Set(prev)
+                      next.add(server.id)
+                      return next
+                    })
+                    await refresh()
+                    router.push(`/servers/${server.id}`)
+                  } catch (err) {
+                    setJoinErrors((prev) => ({
+                      ...prev,
+                      [server.id]: "Network error while joining",
+                    }))
+                  } finally {
+                    setJoiningIds((prev) => {
+                      const next = new Set(prev)
+                      next.delete(server.id)
+                      return next
+                    })
+                  }
+                }}
+              >
+                {joinedIds.has(server.id) ? "Rejoint" : "Rejoindre"}
               </Button>
             </CardFooter>
+            {joinErrors[server.id] && (
+              <div className="px-4 pb-3 text-xs text-red-500">
+                {joinErrors[server.id]}
+              </div>
+            )}
           </Card>
         );
       })}

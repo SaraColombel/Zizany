@@ -42,5 +42,17 @@ export class PrismaServerRepository extends ServerRepository {
     return PrismaServerMapper.toDomain(data);
   }
 
+  async update(id: number, payload: Partial<Omit<ServerProperties, "id" | "owner_id">>): Promise<Server> {
+    const data = await prisma.servers.update({
+      where: { id },
+      data: payload,
+    });
+    return PrismaServerMapper.toDomain(data);
+  }
 
+  async delete(id: number): Promise<void> {
+    await prisma.servers.delete({
+      where: { id },
+    });
+  }
 }

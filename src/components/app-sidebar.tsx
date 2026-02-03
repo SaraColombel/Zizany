@@ -74,7 +74,7 @@ const data = {
   },
   navSecondary: [
     {
-      title: "Server List",
+      title: "Servers List",
       url: "/servers",
       icon: IconList,
     },
@@ -118,10 +118,12 @@ export function AppSidebar({
    * The URL structure is expected to be:
    * /servers/:serverId
    */
-  const navMain = servers.map((s) => ({
-    title: s.name,
-    url: `/servers/${s.id}`,
-    icon: IconDatabase,
+  const navMain = servers
+    .filter((s) => s.isMember)
+    .map((s) => ({
+      title: s.name,
+      url: `/servers/${s.id}`,
+      icon: IconDatabase,
 
     /**
      * Optional thumbnail.
@@ -129,13 +131,13 @@ export function AppSidebar({
      */
     imageUrl: s.thumbnail ?? undefined,
 
-    /**
-     * Placeholder: all servers are leavable for now.
-     * Once we know the current user's role per server, this will become:
-     *   canLeave = role !== "Owner"
-     */
-    canLeave: true,
-  }))
+      /**
+       * Placeholder: all servers are leavable for now.
+       * Once we know the current user's role per server, this will become:
+       *   canLeave = role !== "Owner"
+       */
+      canLeave: true,
+    }))
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>

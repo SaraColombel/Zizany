@@ -6,17 +6,24 @@ import { getOnlineUserIds } from "@/backend/infrastructure/ws/presence_store";
 export class ServerController {
   async all(req: Request, res: Response, next: NextFunction) {
     try {
-      const servers = await new PrismaServerRepository().get_all();
-      const serverIds = servers.map((server) => server.props.id);
+      const userId = req.session.user_id;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
 
+      const servers = await prisma.servers.findMany({
+        orderBy: { id: "asc" },
+      });
+
+      const serverIds = servers.map((server) => server.id);
       const membershipCounts =
         serverIds.length === 0
           ? []
           : await prisma.memberships.groupBy({
-              by: ["server_id"],
-              where: { server_id: { in: serverIds } },
-              _count: { _all: true },
-            });
+            by: ["server_id"],
+            where: { server_id: { in: serverIds } },
+            _count: { _all: true },
+          });
       const membersByServer = new Map(
         membershipCounts.map((row) => [row.server_id, row._count._all]),
       );
@@ -37,14 +44,28 @@ export class ServerController {
         onlineCounts.map((row) => [row.server_id, row._count._all]),
       );
 
+      const userMemberships =
+        serverIds.length === 0
+          ? []
+          : await prisma.memberships.findMany({
+            where: {
+              user_id: userId,
+              server_id: { in: serverIds },
+            },
+            select: { server_id: true },
+          });
+      const joinedSet = new Set(userMemberships.map((row) => row.server_id));
+
       const payload = servers.map((server) => ({
-        id: server.props.id,
-        name: server.props.name,
-        thumbnail: server.props.thumbnail ?? null,
-        banner: server.props.banner ?? null,
-        members: membersByServer.get(server.props.id) ?? 0,
-        onlineMembers: onlineByServer.get(server.props.id) ?? 0,
+        id: server.id,
+        name: server.name,
+        thumbnail: server.thumbnail ?? null,
+        banner: server.banner ?? null,
+        members: membersByServer.get(server.id) ?? 0,
+        onlineMembers: onlineByServer.get(server.id) ?? 0,
+        isMember: joinedSet.has(server.id),
       }));
+
       return res.json({
         servers: payload,
       });
@@ -56,7 +77,7 @@ export class ServerController {
 
   async index(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = parseInt(req.params.id[0]);
+      const id = Number(req.params.id);
       const server = await new PrismaServerRepository().find_by_id(id)
       const membership = await new PrismaMembershipRepository().get_by_server_id(id)
       const isAdmin = server?.isAdmin(membership, id, req.session.user_id!);

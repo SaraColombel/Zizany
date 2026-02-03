@@ -55,4 +55,28 @@ export class PrismaMembershipRepository extends MembershipRepository {
     });
     return;
   }
+
+  async find_by_user_and_server(user_id: number, server_id: number): Promise<Membership | undefined> {
+    const data = await prisma.memberships.findFirst({
+      where: { user_id, server_id },
+    });
+    if (!data) {
+      return undefined;
+    } else {
+      return PrismaMembershipMapper.toDomain(data);
+    }
+  }
+
+  async delete_by_user_and_server(user_id: number, server_id: number): Promise<void> {
+    await prisma.memberships.deleteMany({
+      where: { user_id, server_id },
+    });
+  }
+
+  async update_role(user_id: number, server_id: number, role_id: number): Promise<void> {
+    await prisma.memberships.updateMany({
+      where: { user_id, server_id },
+      data: { role_id }
+    });
+  }
 }
