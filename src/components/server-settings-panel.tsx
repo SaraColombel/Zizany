@@ -1,10 +1,12 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useServers } from "@/components/servers-context"
 import {
   Select,
   SelectContent,
@@ -63,22 +65,33 @@ export function ServerSettingsPanel({
   serverName,
   open,
   onOwnershipTransferred,
+  onDeleted,
 }: {
   serverId: string
   serverName?: string
   open: boolean
   onOwnershipTransferred?: () => void
+  onDeleted?: () => void
 }) {
+  const router = useRouter()
+  const { refresh } = useServers()
   const [members, setMembers] = React.useState<Member[]>([])
   const [loading, setLoading] = React.useState<boolean>(false)
   const [error, setError] = React.useState<string | null>(null)
   const [savingIds, setSavingIds] = React.useState<Set<number>>(new Set())
+  const [isDeleting, setIsDeleting] = React.useState(false)
+  const [deleteError, setDeleteError] = React.useState<string | null>(null)
   const [ownerConfirm, setOwnerConfirm] = React.useState<{
     member: Member
     nextRoleId: number
   } | null>(null)
   const [ownerConfirmText, setOwnerConfirmText] = React.useState("")
   const [ownerConfirmError, setOwnerConfirmError] = React.useState<string | null>(
+    null,
+  )
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = React.useState("")
+  const [deleteConfirmError, setDeleteConfirmError] = React.useState<string | null>(
     null,
   )
 
@@ -242,6 +255,35 @@ export function ServerSettingsPanel({
     updateRole,
   ])
 
+  const handleDeleteServer = React.useCallback(async () => {
+    if (!serverId || isDeleting) return
+    setDeleteError(null)
+    setIsDeleting(true)
+
+    try {
+      const res = await fetch(`${apiBase}/api/servers/${serverId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.message ?? `HTTP ${res.status}`)
+      }
+
+      await refresh()
+      onDeleted?.()
+      router.push("/servers")
+    } catch (e) {
+      setDeleteError(
+        e instanceof Error ? e.message : "Failed to delete server",
+      )
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [apiBase, isDeleting, onDeleted, refresh, router, serverId, serverName])
+
   return (
     <div className="relative flex h-full flex-col">
       <div className="border-b px-6 py-5">
@@ -256,6 +298,36 @@ export function ServerSettingsPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="mb-6 rounded-md border border-destructive/40 bg-destructive/5 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-destructive">
+                Danger zone
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Deleting the server removes all channels, messages, and members.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="cursor-pointer"
+              onClick={() => {
+                setDeleteConfirmOpen(true)
+                setDeleteConfirmText("")
+                setDeleteConfirmError(null)
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete server"}
+            </Button>
+          </div>
+          {deleteError && (
+            <div className="mt-3 text-xs text-destructive">{deleteError}</div>
+          )}
+        </div>
+
         <div className="flex items-center justify-between pb-3">
           <div>
             <h3 className="text-sm font-semibold">Members</h3>
@@ -419,6 +491,82 @@ export function ServerSettingsPanel({
                 }
               >
                 Transfer ownership
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirmOpen && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-lg border bg-background p-6 shadow-lg">
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-destructive">
+                Delete server
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                You are about to delete{" "}
+                <span className="font-medium text-foreground">
+                  {serverName ?? "this server"}
+                </span>
+                .
+              </p>
+              <p className="text-sm text-destructive">
+                This will remove channels, messages, and memberships permanently.
+              </p>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <label className="text-xs font-semibold tracking-wide text-muted-foreground">
+                TYPE "{ownerConfirmPhrase}" TO CONFIRM
+              </label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(event) => {
+                  setDeleteConfirmText(event.target.value)
+                  if (deleteConfirmError) {
+                    setDeleteConfirmError(null)
+                  }
+                }}
+                placeholder={ownerConfirmPhrase}
+              />
+              {deleteConfirmError && (
+                <div className="text-xs text-destructive">
+                  {deleteConfirmError}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setDeleteConfirmOpen(false)
+                  setDeleteConfirmText("")
+                  setDeleteConfirmError(null)
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={async () => {
+                  if (deleteConfirmText.trim() !== ownerConfirmPhrase) {
+                    setDeleteConfirmError(
+                      `Please type "${ownerConfirmPhrase}" to confirm deletion.`,
+                    )
+                    return
+                  }
+                  setDeleteConfirmOpen(false)
+                  setDeleteConfirmText("")
+                  setDeleteConfirmError(null)
+                  await handleDeleteServer()
+                }}
+                disabled={isDeleting}
+              >
+                Delete server
               </Button>
             </div>
           </div>

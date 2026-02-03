@@ -108,6 +108,10 @@ export function SiteHeader() {
                       setSettingsOpen(false)
                       setIsOwner(false)
                     }}
+                    onDeleted={() => {
+                      setSettingsOpen(false)
+                      setIsOwner(false)
+                    }}
                   />
                 )}
               </SheetContent>
