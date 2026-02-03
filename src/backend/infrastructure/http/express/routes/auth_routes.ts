@@ -6,8 +6,8 @@ const router = Router();
 const authController = new AuthController();
 const authMiddleware = new AuthMiddleware();
 
-router.post("/login", authController.login);
-router.post("/signup", authController.signup);
+router.post("/login", authMiddleware.silent, authController.login);
+router.post("/signup", authMiddleware.silent, authController.signup);
 router.post("/logout", authMiddleware.handle, authController.logout);
 router.get("/me", authMiddleware.handle, authController.me);
 
