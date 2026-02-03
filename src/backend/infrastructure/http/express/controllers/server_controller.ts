@@ -3,6 +3,7 @@ import { PrismaServerRepository } from "@/backend/infrastructure/persistence/pri
 import { PrismaMembershipRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_membership_repository";
 import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
 import { getOnlineUserIds } from "@/backend/infrastructure/ws/presence_store";
+import { PrismaServerMapper } from "@/backend/infrastructure/persistence/prisma/mappers/prisma_server_mapper";
 import type { ServerProperties } from "@/backend/domain/entities/server";
 
 
@@ -92,11 +93,14 @@ export class ServerController {
   async index(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id);
+      const userId = Number(req.session.user_id);
       const server = await new PrismaServerRepository().find_by_id(id);
       const membership = await new PrismaMembershipRepository().get_by_server_id(id);
 
-      const isAdmin = server?.isAdmin(membership, id, req.session.user_id!);
-      const isOwner = server?.isOwner(membership, id, req.session.user_id!);
+      const isAdmin = server?.isAdmin(membership, id, userId) ?? false;
+      const isOwner =
+        (server?.props.owner_id === userId) ||
+        (server?.isOwner(membership, id, userId) ?? false);
 
       return res.json({
         server,
@@ -118,24 +122,44 @@ export class ServerController {
       const { name, thumbnail, banner } = req.body;
       const owner_id = Number(req.session.user_id);
 
+      if (!Number.isFinite(owner_id)) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
       if (!name || typeof name !== "string") {
         return res.status(400).json({ message: "name is required" });
       }
 
-      const server = await new PrismaServerRepository().save({
-        name,
-        owner_id,
-        thumbnail: thumbnail ?? null,
-        banner: banner ?? null,
+      const serverData = await prisma.$transaction(async (tx) => {
+        const created = await tx.servers.create({
+          data: {
+            name,
+            owner_id,
+            thumbnail: thumbnail ?? null,
+            banner: banner ?? null,
+          },
+        });
+
+        await tx.channels.create({
+          data: {
+            server_id: created.id,
+            name: "général",
+          },
+        });
+
+        // Create Owner membership for creator
+        await tx.memberships.create({
+          data: {
+            user_id: owner_id,
+            server_id: created.id,
+            role_id: ROLE_OWNER,
+          },
+        });
+
+        return created;
       });
 
-      // Create Owner membership for creator
-      await new PrismaMembershipRepository().save({
-        id: 0,
-        user_id: owner_id,
-        server_id: server.props.id,
-        role_id: ROLE_OWNER,
-      });
+      const server = PrismaServerMapper.toDomain(serverData);
 
       return res.status(201).json({
         message: "Server created successfully",
@@ -157,8 +181,16 @@ export class ServerController {
         return res.status(400).json({ message: "Invalid server id" });
       }
 
+      const server = await new PrismaServerRepository().find_by_id(serverId);
+      if (!server) {
+        return res.status(404).json({ message: "Server not found" });
+      }
+
       const callerMembership = await new PrismaMembershipRepository().find_by_user_and_server(userId, serverId);
-      if (!callerMembership || callerMembership.props.role_id !== ROLE_OWNER) {
+      const isOwner =
+        server.props.owner_id === userId ||
+        (callerMembership && callerMembership.props.role_id === ROLE_OWNER);
+      if (!isOwner) {
         return res.status(403).json({ message: "Only owner can update server" });
       }
 
@@ -192,8 +224,16 @@ export class ServerController {
         return res.status(400).json({ message: "Invalid server id"});
       }
 
+      const server = await new PrismaServerRepository().find_by_id(serverId);
+      if (!server) {
+        return res.status(404).json({ message: "Server not found" });
+      }
+
       const callerMembership = await new PrismaMembershipRepository().find_by_user_and_server(userId, serverId);
-      if (!callerMembership || callerMembership.props.role_id !== ROLE_OWNER) {
+      const isOwner =
+        server.props.owner_id === userId ||
+        (callerMembership && callerMembership.props.role_id === ROLE_OWNER);
+      if (!isOwner) {
         return res.status(403).json({ message: "Only owner can delete server" });
       }
 

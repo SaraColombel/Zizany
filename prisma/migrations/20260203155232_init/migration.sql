@@ -73,9 +73,6 @@ CREATE TABLE "Messages" (
 CREATE UNIQUE INDEX "Users_email_key" ON "Users"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Servers_owner_id_key" ON "Servers"("owner_id");
-
--- CreateIndex
 CREATE UNIQUE INDEX "Roles_name_key" ON "Roles"("name");
 
 -- AddForeignKey
