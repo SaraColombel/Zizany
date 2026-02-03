@@ -10,6 +10,8 @@ export type Server = {
   members: number;
   onlineMembers: number;
   isMember: boolean;
+  canLeave: boolean;
+  currentUserRoleId: number | null;
 };
 
 type ServersContextType = {
@@ -59,11 +61,26 @@ export function ServersProvider({ children }: { children: React.ReactNode }) {
           const id = Number(base.id);
           if (!Number.isFinite(id)) return null;
 
+          const roleId =
+            typeof base.currentUserRoleId === "number"
+              ? base.currentUserRoleId
+              : null;
+          const isMember = Boolean(
+            (rawRecord && "isMember" in rawRecord
+              ? rawRecord.isMember
+              : base.isMember) ?? false,
+          );
+          const canLeave =
+            typeof base.canLeave === "boolean"
+              ? base.canLeave
+              : isMember && roleId !== 1;
+
           return {
             id,
             name: String(base.name ?? "Untitled server"),
-            thumbnail: base.thumbnail ?? null,
-            banner: base.banner ?? null,
+            thumbnail:
+              typeof base.thumbnail === "string" ? base.thumbnail : null,
+            banner: typeof base.banner === "string" ? base.banner : null,
             members:
               typeof base.members === "number" && base.members >= 0
                 ? base.members
@@ -72,11 +89,9 @@ export function ServersProvider({ children }: { children: React.ReactNode }) {
               typeof base.onlineMembers === "number" && base.onlineMembers >= 0
                 ? base.onlineMembers
                 : 0,
-            isMember: Boolean(
-              (rawRecord && "isMember" in rawRecord
-                ? rawRecord.isMember
-                : base.isMember) ?? false,
-            ),
+            isMember,
+            canLeave,
+            currentUserRoleId: roleId,
           } satisfies Server;
         })
         .filter((s: Server | null): s is Server => s !== null);

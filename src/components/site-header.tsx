@@ -7,11 +7,20 @@ import { usePathname } from "next/navigation"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import { ServerSettingsPanel } from "@/components/server-settings-panel"
 
 export function SiteHeader() {
   const pathname = usePathname()
   const { servers } = useServers()
   const [isOwner, setIsOwner] = React.useState(false)
+  const [settingsOpen, setSettingsOpen] = React.useState(false)
 
   // match /servers ou /servers/srv-3 ou /servers/srv-3/...
   const parts = pathname.split("/").filter(Boolean)
@@ -70,21 +79,39 @@ export function SiteHeader() {
         <div className="flex items-center gap-2">
           <h1 className="text-base font-medium">{title}</h1>
           {serverId && isOwner && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 cursor-pointer"
-              aria-label="Server options"
-              onClick={() => {
-                window.alert(
-                  "Server options are not wired to the backend yet.\n" +
-                    "Later, this button will open the server settings."
-                )
-              }}
-            >
-              <IconSettings className="h-4 w-4" />
-            </Button>
+            <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 cursor-pointer"
+                  aria-label="Server settings"
+                >
+                  <IconSettings className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent
+                side="right"
+                className="w-[min(92vw,650px)] p-0 sm:max-w-none"
+                closeClassName="top-6"
+              >
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Server settings</SheetTitle>
+                </SheetHeader>
+                {serverId && (
+                  <ServerSettingsPanel
+                    serverId={serverId}
+                    serverName={server?.name}
+                    open={settingsOpen}
+                    onOwnershipTransferred={() => {
+                      setSettingsOpen(false)
+                      setIsOwner(false)
+                    }}
+                  />
+                )}
+              </SheetContent>
+            </Sheet>
           )}
         </div>
 

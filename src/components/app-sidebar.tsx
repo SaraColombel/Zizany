@@ -132,11 +132,9 @@ export function AppSidebar({
     imageUrl: s.thumbnail ?? undefined,
 
       /**
-       * Placeholder: all servers are leavable for now.
-       * Once we know the current user's role per server, this will become:
-       *   canLeave = role !== "Owner"
+       * Backend provides whether the current user can leave the server.
        */
-      canLeave: true,
+      canLeave: s.canLeave,
     }))
 
   return (
