@@ -4,7 +4,7 @@ import { PrismaMembershipRepository } from "@/backend/infrastructure/persistence
 export class MembershipController {
   async all(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = parseInt(req.params.id[0]);
+      const id = Number(req.params.id);
       const members = await new PrismaMembershipRepository().get_by_server_id(
         id,
       );

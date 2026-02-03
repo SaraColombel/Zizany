@@ -16,7 +16,7 @@ export class ServerController {
 
   async index(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = parseInt(req.params.id[0]);
+      const id = Number(req.params.id);
       const server = await new PrismaServerRepository().find_by_id(id)
       const membership = await new PrismaMembershipRepository().get_by_server_id(id)
       const isAdmin = server?.isAdmin(membership, id, req.session.user_id!);
