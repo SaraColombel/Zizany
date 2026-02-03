@@ -3,6 +3,7 @@ import { PrismaServerRepository } from "@/backend/infrastructure/persistence/pri
 import { PrismaMembershipRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_membership_repository";
 import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
 import { getOnlineUserIds } from "@/backend/infrastructure/ws/presence_store";
+import type { ServerProperties } from "@/backend/domain/entities/server";
 
 
 const ROLE_OWNER = 1;
@@ -17,7 +18,7 @@ export class ServerController {
       const servers = await prisma.servers.findMany({
         orderBy: { id: "asc" },
       });
-      return res.json({ servers });
+      // return res.json({ servers });
 
       const serverIds = servers.map((server) => server.id);
       const membershipCounts =
@@ -125,7 +126,7 @@ export class ServerController {
         user_id: owner_id,
         server_id: server.props.id,
         role_id: ROLE_OWNER,
-      } as any);
+      });
 
       return res.status(201).json({
         message: "Server created successfully",
@@ -153,12 +154,19 @@ export class ServerController {
       }
 
       const { name, thumbnail, banner } = req.body;
-      const payload: any = {};
+      const payload: {
+        name?: string;
+        thumbnail?: string | null;
+        banner?: string | null;
+      } = {};
       if (typeof name === "string") payload.name = name;
       if (thumbnail === null || typeof thumbnail === "string") payload.thumbnail = thumbnail;
       if (banner === null || typeof banner === "string") payload.banner = banner;
 
-      const updated = await new PrismaServerRepository().update(serverId, payload);
+      const updated = await new PrismaServerRepository().update(
+        serverId,
+        payload as Partial<Omit<ServerProperties, "id" | "owner_id">>,
+      );
       return res.json({ server: updated });
     } catch (err) {
       next(err);

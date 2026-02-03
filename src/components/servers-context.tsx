@@ -45,10 +45,16 @@ export function ServersProvider({ children }: { children: React.ReactNode }) {
        * - array of domain entities serialized as `{ props: { ... } }`
        * - array of plain objects `{ id, name, thumbnail, banner, members }`
        */
+      const isRecord = (value: unknown): value is Record<string, unknown> =>
+        typeof value === "object" && value !== null;
+
       const normalized: Server[] = (json.servers ?? [])
-        .map((raw: any) => {
-          const base = raw && raw.props ? raw.props : raw;
-          if (!base) return null;
+        .map((raw: unknown) => {
+          const rawRecord = isRecord(raw) ? raw : null;
+          const base =
+            rawRecord && "props" in rawRecord ? rawRecord.props : rawRecord;
+
+          if (!isRecord(base)) return null;
 
           const id = Number(base.id);
           if (!Number.isFinite(id)) return null;
@@ -67,8 +73,8 @@ export function ServersProvider({ children }: { children: React.ReactNode }) {
                 ? base.onlineMembers
                 : 0,
             isMember: Boolean(
-              (raw && typeof raw.isMember !== "undefined"
-                ? raw.isMember
+              (rawRecord && "isMember" in rawRecord
+                ? rawRecord.isMember
                 : base.isMember) ?? false,
             ),
           } satisfies Server;

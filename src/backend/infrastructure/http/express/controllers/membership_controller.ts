@@ -78,7 +78,7 @@ export class MembershipController {
         user_id: userId,
         server_id: serverId,
         role_id: ROLE_MEMBER,
-      } as any);
+      });
 
       return res.status(201).json({ ok: true });
     } catch (err) {
