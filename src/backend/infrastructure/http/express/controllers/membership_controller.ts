@@ -146,7 +146,25 @@ export class MembershipController {
         return res.status(403).json({ message: "Cannot change owner role" });
       }
 
-      await new PrismaMembershipRepository().update_role(targetUserId, serverId, newRoleId);
+      if (newRoleId === ROLE_OWNER) {
+        await new PrismaMembershipRepository().update_role(
+          targetUserId,
+          serverId,
+          ROLE_OWNER,
+        );
+        await new PrismaMembershipRepository().update_role(
+          currentUserId,
+          serverId,
+          ROLE_MEMBER,
+        );
+        return res.status(204).send();
+      }
+
+      await new PrismaMembershipRepository().update_role(
+        targetUserId,
+        serverId,
+        newRoleId,
+      );
       return res.status(204).send();
     } catch (err) {
       next(err);
