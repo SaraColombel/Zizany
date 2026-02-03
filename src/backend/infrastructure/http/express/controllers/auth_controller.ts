@@ -129,4 +129,12 @@ export class AuthController {
       code: "DISCONNECTED",
     });
   }
+
+  async me(req: Request, res: Response) {
+    return res.status(res.statusCode).json({
+      id: req.session.user_id,
+      email: req.session.email,
+      username: req.session.username,
+    });
+  }
 }

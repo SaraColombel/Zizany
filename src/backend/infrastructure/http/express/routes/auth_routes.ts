@@ -9,5 +9,6 @@ const authMiddleware = new AuthMiddleware();
 router.post("/login", authController.login);
 router.post("/signup", authController.signup);
 router.post("/logout", authMiddleware.handle, authController.logout);
+router.get("/me", authMiddleware.handle, authController.me);
 
 export default router;
