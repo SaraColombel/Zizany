@@ -89,11 +89,11 @@ const data = {
       icon: IconPencil,
       // action is handled inside NavSecondary
     },
-    {
-      title: "Settings",
-      url: "#",
-      icon: IconSettings,
-    },
+    // {
+    //   title: "Settings",
+    //   url: "#",
+    //   icon: IconSettings,
+    // },
   ],
 }
 
