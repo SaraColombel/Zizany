@@ -1,7 +1,7 @@
 import "dotenv/config";
 import http from "http";
 import { createApp, sessionMiddleware } from "./app";
-import { attachSocket } from "@/infrastructure/ws/socket";
+import { attachSocket } from "../../ws/socket";
 
 const PORT = Number(process.env.API_PORT ?? 4000);
 const app = createApp();
