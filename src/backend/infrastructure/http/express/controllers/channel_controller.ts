@@ -44,7 +44,6 @@ export class ChannelController {
         server_id: parseInt(req.params.id[0]),
       });
 
-      // TODO: check si channel existe pas deja
       const channel = await new PrismaChannelRepository().save({
         name,
         server_id,
