@@ -113,15 +113,15 @@ async function main() {
     data: [
       {
         server_id: 1,
-        name: "Sara channel",
+        name: "Sara-channel",
       },
       {
         server_id: 2,
-        name: "Mathieu channel",
+        name: "Mathieu-channel",
       },
       {
         server_id: 3,
-        name: "Jeremy channel",
+        name: "Jeremy-channel",
       },
     ],
   });
