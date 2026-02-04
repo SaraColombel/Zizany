@@ -82,7 +82,12 @@ export function ServerChannelsSidebar({
   // Form state for create / rename flows.
   const [newChannelName, setNewChannelName] = React.useState("");
   const [renameName, setRenameName] = React.useState("");
-  const [formError, setFormError] = React.useState<string | null>(null);
+  const [createFormError, setCreateFormError] = React.useState<string | null>(
+    null,
+  );
+  const [updateFormError, setUpdateFormError] = React.useState<string | null>(
+    null,
+  );
 
   /**
    * Load channels for the given server on mount and whenever serverId changes.
@@ -185,11 +190,11 @@ export function ServerChannelsSidebar({
 
       if (!res.ok) {
         if (res.status === 422 && data?.err?.messages?.length) {
-          setFormError(data.err.messages[0].message);
+          setCreateFormError(data.err.messages[0].message);
           return;
         }
 
-        setFormError("Unable to create channel. Please try again.");
+        setCreateFormError("Unable to create channel. Please try again.");
         return;
       }
 
@@ -300,8 +305,8 @@ export function ServerChannelsSidebar({
             onClick={(event) => event.stopPropagation()}
           >
             <h2 className="mb-3 text-sm font-semibold">Create a new channel</h2>
-            {formError && (
-              <div className="text-xs text-red-500">{formError}</div>
+            {createFormError && (
+              <div className="text-xs text-red-500">{createFormError}</div>
             )}
             <form onSubmit={handleCreateSubmit} className="space-y-3">
               <div className="space-y-1.5">
@@ -478,6 +483,9 @@ export function ServerChannelsSidebar({
               <h2 className="mb-2 text-sm font-semibold">
                 Modify channel name
               </h2>
+              {updateFormError && (
+                <div className="text-xs text-red-500">{updateFormError}</div>
+              )}
               <form
                 className="space-y-3"
                 onSubmit={async (event) => {
@@ -495,12 +503,16 @@ export function ServerChannelsSidebar({
                         credentials: "include",
                       },
                     );
+                    const data = await res.json().catch(() => null);
 
                     if (!res.ok) {
-                      const data = await res.json().catch(() => null);
-                      console.error(
-                        "Failed to rename channel:",
-                        data ?? res.statusText,
+                      if (res.status === 422 && data?.err?.messages?.length) {
+                        setUpdateFormError(data.err.messages[0].message);
+                        return;
+                      }
+
+                      setUpdateFormError(
+                        "Unable to rename channel. Please try again.",
                       );
                       return;
                     }
