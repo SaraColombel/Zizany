@@ -155,7 +155,96 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
           user: { id: created.user.id, username: created.user.username },
         };
 
-        socket.to(`channel:${channelId}`).emit("message:new", dto);
+        io.to(`channel:${channelId}`).emit("message:new", dto);
+        io.to(`channel:${channelId}`).emit("message:created", dto);
+      },
+    );
+
+    // Message delete -> permission -> DB -> broadcast
+    socket.on(
+      "message:delete",
+      async ({ messageId }: { messageId: number }) => {
+        if (!Number.isFinite(messageId)) return;
+
+        const msg = await prisma.messages.findUnique({
+          where: { id: messageId },
+          select: { id: true, channel_id: true, user_id: true },
+        });
+        if (!msg) return socket.emit("error:not_found", { code: "E_MESSAGE_NOT_FOUND" });
+
+        const channel = await prisma.channels.findUnique({
+          where: { id: msg.channel_id },
+          select: { id: true, server_id: true },
+        });
+        if (!channel) return socket.emit("error:not_found", { code: "E_CHANNEL_NOT_FOUND" });
+
+        const membership = await prisma.memberships.findFirst({
+          where: { server_id: channel.server_id, user_id: userId },
+          select: { role_id: true },
+        });
+        if (!membership) return socket.emit("error:permission", { code: "E_FORBIDDEN" });
+
+        const isOwnerOrAdmin = membership.role_id === 1 || membership.role_id === 2;
+        const isAuthor = msg.user_id === userId;
+        if (!isAuthor && !isOwnerOrAdmin) {
+          return socket.emit("error:permission", { code: "E_FORBIDDEN" });
+        }
+
+        await prisma.messages.delete({ where: { id: messageId } });
+
+        // broadcast to everyone in the channel (including sender)
+        io.to(`channel:${msg.channel_id}`).emit("message:deleted", { messageId });
+      },
+    );
+
+    // Message update -> permission -> DB -> broadcast
+    socket.on(
+      "message:update",
+      async ({ messageId, content }: { messageId: number; content: string }) => {
+        if (!Number.isFinite(messageId)) return;
+        const trimmed = (content ?? "").trim();
+        if (!trimmed) return;
+
+        const msg = await prisma.messages.findUnique({
+          where: { id: messageId },
+          select: { id: true, channel_id: true, user_id: true },
+        });
+        if (!msg) return socket.emit("error:not_found", { code: "E_MESSAGE_NOT_FOUND" });
+
+        const channel = await prisma.channels.findUnique({
+          where: { id: msg.channel_id },
+          select: { id: true, server_id: true },
+        });
+        if (!channel) return socket.emit("error:not_found", { code: "E_CHANNEL_NOT_FOUND" });
+
+        const membership = await prisma.memberships.findFirst({
+          where: { server_id: channel.server_id, user_id: userId },
+          select: { role_id: true },
+        });
+        if (!membership) return socket.emit("error:permission", { code: "E_FORBIDDEN" });
+
+        const isOwnerOrAdmin = membership.role_id === 1 || membership.role_id === 2;
+        const isAuthor = msg.user_id === userId;
+        if (!isAuthor && !isOwnerOrAdmin) {
+          return socket.emit("error:permission", { code: "E_FORBIDDEN" });
+        }
+
+        const updated = await prisma.messages.update({
+          where: { id: messageId },
+          data: { content: trimmed },
+          include: { user: { select: { id: true, username: true } } },
+        });
+
+        const dto = {
+          id: updated.id,
+          channel_id: updated.channel_id,
+          content: updated.content,
+          created_at: updated.created_at.toISOString(),
+          updated_at: updated.updated_at.toISOString(),
+          user: { id: updated.user.id, username: updated.user.username },
+        };
+
+        io.to(`channel:${updated.channel_id}`).emit("message:updated", dto);
       },
     );
 
