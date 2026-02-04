@@ -46,6 +46,16 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
     return members.filter((m) => !onlineSet.has(m.user_id))
   }, [members, onlineSet])
 
+  function getRoleMeta(roleId: number) {
+    if (roleId === 1) {
+      return { label: "Owner", className: "text-emerald-500" }
+    }
+    if (roleId === 2) {
+      return { label: "Admin", className: "text-red-500" }
+    }
+    return { label: null, className: "" }
+  }
+
   React.useEffect(() => {
     let cancelled = false
     const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
@@ -241,7 +251,12 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
                   className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted"
                 >
                   <IconUsers className="h-4 w-4" />
-                  <span>{m.user?.username ?? "Unknown user"}</span>
+                  <span
+                    className={getRoleMeta(m.role_id).className}
+                    title={getRoleMeta(m.role_id).label ?? undefined}
+                  >
+                    {m.user?.username ?? "Unknown user"}
+                  </span>
                 </div>
               ))}
             </>
@@ -258,7 +273,12 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
                   className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted"
                 >
                   <IconUsers className="h-4 w-4" />
-                  <span>{m.user?.username ?? "Unknown user"}</span>
+                  <span
+                    className={getRoleMeta(m.role_id).className}
+                    title={getRoleMeta(m.role_id).label ?? undefined}
+                  >
+                    {m.user?.username ?? "Unknown user"}
+                  </span>
                   <span
                     className="ml-auto h-2 w-2 rounded-full bg-emerald-500"
                     aria-label="Online"
@@ -275,7 +295,12 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
                   className="flex items-center gap-2 rounded px-2 py-1 text-muted-foreground"
                 >
                   <IconUsers className="h-4 w-4" />
-                  <span>{m.user?.username ?? "Unknown user"}</span>
+                  <span
+                    className={getRoleMeta(m.role_id).className}
+                    title={getRoleMeta(m.role_id).label ?? undefined}
+                  >
+                    {m.user?.username ?? "Unknown user"}
+                  </span>
                 </div>
               ))}
             </>

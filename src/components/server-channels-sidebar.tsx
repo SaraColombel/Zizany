@@ -341,7 +341,7 @@ export function ServerChannelsSidebar({
             onClick={closeOverlays}
           >
             <div
-              className="w-56 space-y-1 rounded-md border bg-popover p-1 shadow-lg"
+              className="w-56 space-y-1.5 rounded-md border bg-popover p-2 shadow-lg"
               style={{
                 position: "absolute",
                 top: contextPos.y,
