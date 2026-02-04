@@ -79,6 +79,11 @@ export function ServerSettingsPanel({
   const [loading, setLoading] = React.useState<boolean>(false)
   const [error, setError] = React.useState<string | null>(null)
   const [savingIds, setSavingIds] = React.useState<Set<number>>(new Set())
+  const [nameInput, setNameInput] = React.useState(serverName ?? "")
+  const [savedName, setSavedName] = React.useState(serverName ?? "")
+  const [nameError, setNameError] = React.useState<string | null>(null)
+  const [nameSuccess, setNameSuccess] = React.useState<string | null>(null)
+  const [isSavingName, setIsSavingName] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [deleteError, setDeleteError] = React.useState<string | null>(null)
   const [ownerConfirm, setOwnerConfirm] = React.useState<{
@@ -98,6 +103,22 @@ export function ServerSettingsPanel({
   const apiBase =
     process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4000"
   const ownerConfirmPhrase = "I understand"
+  const trimmedName = nameInput.trim()
+  const canSaveName =
+    trimmedName.length > 0 &&
+    trimmedName !== savedName.trim() &&
+    !isSavingName
+  const displayServerName =
+    savedName.trim() || serverName?.trim() || "this server"
+
+  React.useEffect(() => {
+    if (!open) return
+    const nextName = serverName ?? ""
+    setNameInput(nextName)
+    setSavedName(nextName)
+    setNameError(null)
+    setNameSuccess(null)
+  }, [open, serverId, serverName])
 
   const loadMembers = React.useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -255,6 +276,54 @@ export function ServerSettingsPanel({
     updateRole,
   ])
 
+  const handleNameSave = React.useCallback(async () => {
+    if (!serverId || isSavingName) return
+    if (trimmedName.length === 0) {
+      setNameError("Server name is required")
+      return
+    }
+    if (trimmedName === savedName.trim()) {
+      return
+    }
+
+    setIsSavingName(true)
+    setNameError(null)
+    setNameSuccess(null)
+
+    try {
+      const res = await fetch(`${apiBase}/api/servers/${serverId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: trimmedName }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.message ?? `HTTP ${res.status}`)
+      }
+
+      const json = await res.json().catch(() => null)
+      const updatedName =
+        typeof json?.server?.props?.name === "string"
+          ? json.server.props.name
+          : typeof json?.server?.name === "string"
+            ? json.server.name
+            : trimmedName
+
+      setSavedName(updatedName)
+      setNameInput(updatedName)
+      setNameSuccess("Server name updated.")
+      await refresh()
+    } catch (e) {
+      setNameError(
+        e instanceof Error ? e.message : "Failed to update server name",
+      )
+    } finally {
+      setIsSavingName(false)
+    }
+  }, [apiBase, isSavingName, refresh, savedName, serverId, trimmedName])
+
   const handleDeleteServer = React.useCallback(async () => {
     if (!serverId || isDeleting) return
     setDeleteError(null)
@@ -291,43 +360,49 @@ export function ServerSettingsPanel({
           <div>
             <h2 className="text-lg font-semibold">Server settings</h2>
             <p className="text-sm text-muted-foreground">
-              Manage member roles for {serverName ?? "this server"}.
+              Manage member roles for {displayServerName}.
             </p>
           </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
-        <div className="mb-6 rounded-md border border-destructive/40 bg-destructive/5 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-semibold text-destructive">
-                Danger zone
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Deleting the server removes all channels, messages, and members.
-              </p>
-            </div>
+        <div className="mb-6 rounded-md border p-4">
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold">Server profile</h3>
+            <p className="text-xs text-muted-foreground">
+              Update the name shown to your members.
+            </p>
+          </div>
+          <div className="mt-4 flex flex-col gap-2">
+            <label className="text-sm font-medium">Server name</label>
+            <Input
+              value={nameInput}
+              onChange={(event) => {
+                setNameInput(event.target.value)
+                if (nameError) setNameError(null)
+                if (nameSuccess) setNameSuccess(null)
+              }}
+              placeholder="My awesome server"
+            />
+            {nameError && (
+              <div className="text-xs text-destructive">{nameError}</div>
+            )}
+            {nameSuccess && (
+              <div className="text-xs text-emerald-600">{nameSuccess}</div>
+            )}
+          </div>
+          <div className="mt-4 flex justify-end">
             <Button
               type="button"
-              variant="destructive"
               size="sm"
-              className="cursor-pointer"
-              onClick={() => {
-                setDeleteConfirmOpen(true)
-                setDeleteConfirmText("")
-                setDeleteConfirmError(null)
-              }}
-              disabled={isDeleting}
+              onClick={handleNameSave}
+              disabled={!canSaveName}
             >
-              {isDeleting ? "Deleting..." : "Delete server"}
+              {isSavingName ? "Saving..." : "Save changes"}
             </Button>
           </div>
-          {deleteError && (
-            <div className="mt-3 text-xs text-destructive">{deleteError}</div>
-          )}
         </div>
-
         <div className="flex items-center justify-between pb-3">
           <div>
             <h3 className="text-sm font-semibold">Members</h3>
@@ -428,6 +503,36 @@ export function ServerSettingsPanel({
             </Table>
           </div>
         )}
+
+        <div className="mt-6 rounded-md border border-destructive/40 bg-destructive/5 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-destructive">
+                Danger zone
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Deleting the server removes all channels, messages, and members.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="cursor-pointer"
+              onClick={() => {
+                setDeleteConfirmOpen(true)
+                setDeleteConfirmText("")
+                setDeleteConfirmError(null)
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete server"}
+            </Button>
+          </div>
+          {deleteError && (
+            <div className="mt-3 text-xs text-destructive">{deleteError}</div>
+          )}
+        </div>
       </div>
 
       {ownerConfirm && (
@@ -507,7 +612,7 @@ export function ServerSettingsPanel({
               <p className="text-sm text-muted-foreground">
                 You are about to delete{" "}
                 <span className="font-medium text-foreground">
-                  {serverName ?? "this server"}
+                  {displayServerName}
                 </span>
                 .
               </p>
