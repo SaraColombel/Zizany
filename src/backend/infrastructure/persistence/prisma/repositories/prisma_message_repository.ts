@@ -64,8 +64,9 @@ export class PrismaMessageRepository extends MessageRepository {
     }));
   }
 
-
-  async save(payload: MessageProperties): Promise<void> {
+  async save(
+    payload: Omit<MessageProperties, "id" | "created_at" | "updated_at">,
+  ): Promise<void> {
     await prisma.messages.create({
       data: {
         channel_id: payload.channel_id,

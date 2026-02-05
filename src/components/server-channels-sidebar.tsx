@@ -82,6 +82,12 @@ export function ServerChannelsSidebar({
   // Form state for create / rename flows.
   const [newChannelName, setNewChannelName] = React.useState("");
   const [renameName, setRenameName] = React.useState("");
+  const [createFormError, setCreateFormError] = React.useState<string | null>(
+    null,
+  );
+  const [updateFormError, setUpdateFormError] = React.useState<string | null>(
+    null,
+  );
 
   /**
    * Load channels for the given server on mount and whenever serverId changes.
@@ -180,10 +186,15 @@ export function ServerChannelsSidebar({
         },
       );
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        console.error("Failed to create channel:", data);
+        if (res.status === 422 && data?.err?.messages?.length) {
+          setCreateFormError(data.err.messages[0].message);
+          return;
+        }
+
+        setCreateFormError("Unable to create channel. Please try again.");
         return;
       }
 
@@ -294,6 +305,9 @@ export function ServerChannelsSidebar({
             onClick={(event) => event.stopPropagation()}
           >
             <h2 className="mb-3 text-sm font-semibold">Create a new channel</h2>
+            {createFormError && (
+              <div className="text-xs text-red-500">{createFormError}</div>
+            )}
             <form onSubmit={handleCreateSubmit} className="space-y-3">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium">Channel name</label>
@@ -381,7 +395,7 @@ export function ServerChannelsSidebar({
               </Button>
             </div>
           </div>
-      )}
+        )}
 
       {/* Delete confirmation panel (centered) */}
       {canManageChannels && uiMode === "delete" && selectedChannel && (
@@ -395,7 +409,8 @@ export function ServerChannelsSidebar({
           >
             <h2 className="mb-2 text-sm font-semibold">Delete channel</h2>
             <p className="mb-4 text-xs text-muted-foreground">
-              Are you sure you want to delete &quot;{selectedChannel.name}&quot;?
+              Are you sure you want to delete &quot;{selectedChannel.name}
+              &quot;?
             </p>
             <div className="flex justify-end gap-2">
               <Button
@@ -419,7 +434,7 @@ export function ServerChannelsSidebar({
                       {
                         method: "DELETE",
                         credentials: "include",
-                      }
+                      },
                     );
 
                     if (!res.ok) {
@@ -432,7 +447,7 @@ export function ServerChannelsSidebar({
                     }
 
                     setChannels((prev) =>
-                      prev.filter((ch) => ch.id !== selectedChannel.id)
+                      prev.filter((ch) => ch.id !== selectedChannel.id),
                     );
                     closeOverlays();
                   } catch (err) {
@@ -468,6 +483,9 @@ export function ServerChannelsSidebar({
               <h2 className="mb-2 text-sm font-semibold">
                 Modify channel name
               </h2>
+              {updateFormError && (
+                <div className="text-xs text-red-500">{updateFormError}</div>
+              )}
               <form
                 className="space-y-3"
                 onSubmit={async (event) => {
@@ -485,12 +503,16 @@ export function ServerChannelsSidebar({
                         credentials: "include",
                       },
                     );
+                    const data = await res.json().catch(() => null);
 
                     if (!res.ok) {
-                      const data = await res.json().catch(() => null);
-                      console.error(
-                        "Failed to rename channel:",
-                        data ?? res.statusText,
+                      if (res.status === 422 && data?.err?.messages?.length) {
+                        setUpdateFormError(data.err.messages[0].message);
+                        return;
+                      }
+
+                      setUpdateFormError(
+                        "Unable to rename channel. Please try again.",
                       );
                       return;
                     }
