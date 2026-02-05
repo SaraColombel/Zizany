@@ -3,6 +3,7 @@ import healthRouter from "./health_routes";
 import authRouter from "./auth_routes";
 import serverRouter from "./server_routes";
 import channelRouter from "./channel_routes";
+import messageRouter from "./message_routes";
 import { AuthMiddleware } from "../middlewares/auth_middleware";
 
 const router = Router();
@@ -12,5 +13,7 @@ router.use("/health", healthRouter);
 router.use("/auth", authRouter);
 router.use("/servers", authMiddleware.handle, serverRouter);
 router.use("/channels", authMiddleware.handle, channelRouter);
+
+router.use("/messages", authMiddleware.handle, channelRouter);
 
 export default router;

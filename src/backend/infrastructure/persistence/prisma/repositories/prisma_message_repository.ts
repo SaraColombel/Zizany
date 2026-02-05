@@ -66,13 +66,61 @@ export class PrismaMessageRepository extends MessageRepository {
 
 
   async save(payload: MessageProperties): Promise<void> {
-    await prisma.messages.create({
+    const created = await prisma.messages.create({
       data: {
         channel_id: payload.channel_id,
         user_id: payload.user_id,
         content: payload.content,
       },
+      include: { user: { select: { id: true, username: true } } },
     });
+
+    return {
+      id: created.id,
+      channel_id: created.channel_id,
+      content: created.content,
+      created_at: created.created_at.toISOString(),
+      updated_at: created.updated_at.toISOString(),
+      user: { id: created.user.id, username: created.user.username },
+    };
+  }
+
+  // return deleted message (so controller can know channel_id)
+  async deleteAndReturn(id: number): Promise<MessageDTO | null> {
+    const msg = await prisma.messages.findUnique({
+      where: { id },
+      include: { user: { select: { id: true, username: true } } },
+    });
+    if (!msg) return null;
+
+    await prisma.messages.delete({ where: { id } });
+
+    return {
+      id: msg.id,
+      channel_id: msg.channel_id,
+      content: msg.content,
+      created_at: msg.created_at.toISOString(),
+      updated_at: msg.updated_at.toISOString(),
+      user: { id: msg.user.id, username: msg.user.username },
+    };
+  }
+
+  // return updated DTO
+  async updateAndReturn(id: number, content: string): Promise<MessageDTO | null> {
+    const updated = await prisma.messages.update({
+      where: { id },
+      data: { content },
+      include: { user: { select: { id: true, username: true } } },
+    });
+
+    return {
+      id: updated.id,
+      channel_id: updated.channel_id,
+      content: updated.content,
+      created_at: updated.created_at.toISOString(),
+      updated_at: updated.updated_at.toISOString(),
+      user: { id: updated.user.id, username: updated.user.username },
+    };
   }
 
   async delete(id: number): Promise<void> {

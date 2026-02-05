@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 
 import { PrismaMessageRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_message_repository";
+import { getSocketServer } from "@/backend/infrastructure/ws/socket";
 
 export class MessageController {
     async all(req: Request, res: Response, next: NextFunction) {
@@ -43,11 +44,16 @@ export class MessageController {
                 return res.status(401).json({ message: "Unauthorized" })
             }
 
-            await new PrismaMessageRepository().save({
+            const dto = await new PrismaMessageRepository().save({
                 channel_id: channelId,
                 user_id: userId,
                 content,
             } as any)
+
+            // broadcast realtime
+            const io = getSocketServer();
+            io?.to(`channel:${channelId}`).emit("message:new", dto);
+
             return res.status(201).json({ ok: true })
         } catch (err) {
             next(err)
@@ -63,6 +69,7 @@ export class MessageController {
     async delete(req: Request, res: Response, next: NextFunction) {
         try {
             // DELETE /api/channels/:channelId/messages/:messageId
+            const channelId = Number(req.params.channelId);
             const messageId = Number(req.params.messageId);
 
             if (!Number.isFinite(messageId)) {
@@ -70,7 +77,11 @@ export class MessageController {
             }
 
             await new PrismaMessageRepository().delete(messageId);
-            console.log(`[MessageController] Deleted message with id=${messageId}`);
+
+            // broadcast
+            const io = getSocketServer();
+            io?.to(`channel:${channelId}`).emit("message:deleted", { messageId });
+            
             return res.status(204).send();
         } catch (err) {
             next(err);
@@ -86,6 +97,7 @@ export class MessageController {
 
     async update(req: Request, res: Response, next: NextFunction) {
         try {
+            const channelId = Number(req.params.channelId);
             const messageId = Number(req.params.messageId);
             const { content } = req.body;
 
@@ -97,9 +109,58 @@ export class MessageController {
                 return res.status(400).json({ message: "content is required" });
             }
 
-            await new PrismaMessageRepository().update(messageId, content);
+            const updated = await new PrismaMessageRepository().updateAndReturn(messageId, content);
 
-            console.log(`[MessageController] Updated message with id=${messageId}`);
+            // broadcast
+            const io = getSocketServer();
+            if (updated) io?.to(`channel:${channelId}`).emit("message:updated", updated);
+
+            return res.status(204).send();
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // DELETE /api/messages/:id
+    async deleteById(req: Request, res: Response, next: NextFunction) {
+        try {
+            const messageId = Number(req.params.id);
+            if (!Number.isFinite(messageId)) {
+                return res.status(400).json({ message: "Invalid message id" });
+            }
+
+            const deleted = await new PrismaMessageRepository().deleteAndReturn(messageId);
+            if (!deleted) return res.status(404).json({ message: "Message not found " });
+
+            // broadcast to correct channel room
+            const io = getSocketServer();
+            io?.to(`channel:${deleted.channel_id}`).emit("message:deleted", { messageId });
+
+            return res.status(204).send();
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // PATCH /api/messages/:id
+    async updateById(req: Request, res: Response, next: NextFunction) {
+        try {
+            const messageId = Number(req.params.id);
+            const { content } = req.body;
+
+            if (!Number.isFinite(messageId)) {
+                return res.status(400).json({ message: "Invalid message id" });
+            }
+            if (!content || typeof content !== "string") {
+                return res.status(400).json({ message: "content is required" });
+            }
+
+            const updated = await new PrismaMessageRepository().updateAndReturn(messageId, content.trim());
+            if (!updated) return res.status(404).json({ message: "Message not found" });
+
+            const io = getSocketServer();
+            io?.to(`channel:${updated.channel_id}`).emit("message:updated", updated);
+
             return res.status(204).send();
         } catch (err) {
             next(err);

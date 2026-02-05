@@ -16,6 +16,43 @@ type ApiMessage = {
   props?: ApiMessage;
 };
 
+function normalizeIncomingMessage(raw: any): UiMessage | null {
+  if (!raw) return null;
+
+  const base = raw.props ? raw.props : raw;
+
+  const createdAt =
+    typeof base.created_at === "string" ? base.created_at : new Date().toISOString();
+  const updatedAt =
+    typeof base.updated_at === "string" ? base.updated_at : createdAt;
+
+  const authorId = base.user?.id ?? base.user_id;
+  const authorName =
+    base.user?.username ??
+    (authorId != null ? `User ${authorId}` : "Unknown");
+
+  return {
+    id: String(base.id),
+    authorId,
+    authorName,
+    content: String(base.content ?? ""),
+    createdAt,
+    isEdited: createdAt !== updatedAt,
+  };
+}
+
+function isSameMessage(a: UiMessage, b: UiMessage) {
+  // "good enough" dedupe: same author + same content + timestamp close
+  if (String(a.authorId ?? "") !== String(b.authorId ?? "")) return false;
+  if (a.content !== b.content) return false;
+
+  const ta = new Date(a.createdAt).getTime();
+  const tb = new Date(b.createdAt).getTime();
+  if (!Number.isFinite(ta) || !Number.isFinite(tb)) return false;
+
+  return Math.abs(ta - tb) < 3000; // 3s window
+}
+
 /**
  * ChatPane
  * --------
@@ -226,20 +263,41 @@ export function ChatPane({
       setTypingUsers([]);
     });
 
-    socket.on("message:new", (msg:any) => {
-      const createdAt = msg.created_at;
-      const updatedAt = msg.updated_at;
+    socket.on("message:new", (msg: any) => {
+      const uiMsg = normalizeIncomingMessage(msg);
+      if (!uiMsg) return;
 
-      const uiMsg: UiMessage = {
-        id: String(msg.id),
-        authorId: msg.user?.id,
-        authorName: msg.user?.username ?? `User ${msg.user?.id}`,
-        content: String(msg.content ?? ""),
-        createdAt,
-        isEdited: createdAt !== updatedAt,
-      };
+      setMessages((prev) => {
+        // 1) avoid exact duplicate by id
+        if (prev.some((m) => m.id === uiMsg.id)) return prev;
 
-      setMessages((prev) => [...prev, uiMsg]);
+        // 2) if we have an optimistic message that matches, replace it
+        const optimisticIndex = prev.findIndex(
+          (m) => m.isOptimistic && isSameMessage(m, uiMsg),
+        );
+
+        if (optimisticIndex !== -1) {
+          const next = [...prev];
+          next[optimisticIndex] = uiMsg;
+          return next;
+        }
+
+        // 3) otherwise append
+        return [...prev, uiMsg];
+      });
+    });
+
+    socket.on("message:deleted", (payload: { messageId: number }) => {
+      setMessages((prev) => prev.filter((m) => m.id !== String(payload.messageId)));
+    });
+
+    socket.on("message:updated", (msg:any) => {
+      const uiMsg = normalizeIncomingMessage(msg);
+      if (!uiMsg) return;
+
+      setMessages((prev) =>
+      prev.map((m) => (m.id === uiMsg.id ? uiMsg : m)),
+    );
     });
 
     socket.on(
@@ -328,6 +386,8 @@ export function ChatPane({
       socket.off("connect_error");
       socket.off("disconnect");
       socket.off("message:new");
+      socket.off("message:deleted");
+      socket.off("message:updated");
       socket.off("server:member_joined");
       socket.off("server:member_left");
       socket.off("typing:update");
@@ -373,9 +433,6 @@ export function ChatPane({
     console.log("socket connected?", socket?.connected);
     if (socket?.connected) {
       socket.emit("message:create", { channelId: Number(channelId), content });
-      setMessages((prev) =>
-      prev.map((m) => (m.id === tempId ? { ...m, isOptimistic: false } : m)),
-    );
     return;
     }
 
@@ -393,9 +450,26 @@ export function ChatPane({
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      setMessages((prev) =>
-      prev.map((m) => (m.id === tempId ? { ...m, isOptimistic: false } : m)),
-    );
+      const json = await res.json().catch(() => null);
+      const dto = json?.message;
+      const confirmed = normalizeIncomingMessage(dto);
+
+      setMessages((prev) => {
+        // remove/replace optimisc
+        const idx = prev.findIndex((m) => m.id === tempId);
+        if (idx === -1) return prev;
+
+        if (confirmed) {
+          const next = [...prev];
+          next[idx] = confirmed;
+          return next;
+        }
+
+        // if no payload, at least mark as sent
+        return prev.map((m) =>
+        m.id === tempId ? { ...m, isOptimistic: false } : m,
+      );
+      });
     } catch {
       setMessages((prev) =>
       prev.map((m) =>
@@ -436,6 +510,24 @@ export function ChatPane({
     );
 
     try {
+      const socket = socketRef.current;
+
+      if (socket?.connected) {
+        socket.emit("message:update", {
+          messageId: Number(message.id),
+          content: trimmed,
+        });
+
+        // waiting for "message:updated" to confirm
+        setMessages((prev) =>
+        prev.map((m) =>
+        m.id === message.id ? {...m, isOptimistic: false, isFailed: false } : m,
+      ),
+    );
+    return;
+      }
+
+      // REST fallback (existing)
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/messages/${message.id}`,
         {
@@ -450,13 +542,12 @@ export function ChatPane({
         throw new Error(`HTTP ${res.status}`);
       }
 
-      // Mark as successfully synced with backend
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === message.id
-            ? { ...m, isOptimistic: false, isEdited: true, isFailed: false }
-            : m,
-        ),
+      prev.map((m) =>
+      m.id === message.id
+    ? { ...m, isOptimistic: false, isEdited: true, isFailed: false }
+  : m,
+),
       );
     } catch {
       // Revert content and flag as failed
@@ -486,8 +577,35 @@ export function ChatPane({
    * Permissions (who can delete what) are expected to be enforced
    * server-side later (owner / admin / author).
    */
-  function handleDeleteMessage(message: UiMessage) {
+  async function handleDeleteMessage(message: UiMessage) {
+    // optimistic remove
     setMessages((prev) => prev.filter((m) => m.id !== message.id));
+
+    const socket = socketRef.current;
+    const messageId = Number(message.id);
+
+    try {
+      if (socket?.connected) {
+        socket.emit("message:delete", { messageId });
+        return;
+      }
+
+      // REST fallback: required endpoint
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/messages/${message.id}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
+
+      if (!res.ok && res.status !== 204) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+    } catch {
+      // rollback on failure
+      setMessages((prev) => [...prev, message]);
+    }
   }
 
   const typingLabel = React.useMemo(() => {
