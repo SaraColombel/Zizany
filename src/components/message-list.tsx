@@ -174,7 +174,7 @@ export function MessageList({
     <div className="flex flex-col gap-2 p-4">
       {messages.map((m) => {
         const createdAt = new Date(m.createdAt)
-        const canEdit = Boolean(onEdit) && (isOwnMessage(m) || canModerateOthers)
+        const canEdit = Boolean(onEdit) && isOwnMessage(m)
         const canDelete = Boolean(onDelete) && (isOwnMessage(m) || canModerateOthers)
         const showMenu = canEdit || canDelete
         const ownMessage = isOwnMessage(m)
