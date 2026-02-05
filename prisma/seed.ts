@@ -5,7 +5,7 @@ import { BcryptHasher } from "@/backend/infrastructure/security/bcrypt_hasher";
 const hasher = new BcryptHasher();
 
 async function main() {
-  const users = await prisma.users.createMany({
+  await prisma.users.createMany({
     data: [
       {
         email: "sara.colombel@epitech.eu",
@@ -25,7 +25,7 @@ async function main() {
     ],
   });
 
-  const servers = await prisma.servers.createMany({
+  await prisma.servers.createMany({
     data: [
       {
         name: "Sara server",
@@ -42,7 +42,7 @@ async function main() {
     ],
   });
 
-  const roles = await prisma.roles.createMany({
+  await prisma.roles.createMany({
     data: [
       {
         name: "Owner",
@@ -56,7 +56,7 @@ async function main() {
     ],
   });
 
-  const memberships = await prisma.memberships.createMany({
+  await prisma.memberships.createMany({
     data: [
       // Owner
       {
@@ -109,7 +109,7 @@ async function main() {
     ],
   });
 
-  const channels = await prisma.channels.createMany({
+  await prisma.channels.createMany({
     data: [
       {
         server_id: 1,
@@ -126,7 +126,7 @@ async function main() {
     ],
   });
 
-  const messages = await prisma.messages.createMany({
+  await prisma.messages.createMany({
     data: [
       {
         channel_id: 1,
