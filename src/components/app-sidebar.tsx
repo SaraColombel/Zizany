@@ -45,19 +45,6 @@ const NavUser = dynamic(
 )
 
 /**
- * Server type as exposed to the UI.
- *
- * This is NOT the full backend model.
- * Only the fields required for navigation are present.
- */
-interface Server {
-  id: number
-  name: string
-  thumbnail: string | null
-  banner: string | null
-}
-
-/**
  * Static data for user and secondary navigation.
  *
  * Notes:

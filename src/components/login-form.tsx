@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useForm } from "react-hook-form";
 // ------
+import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
+  const router = useRouter();
   // useForm here
   const {
     register,
@@ -67,7 +69,7 @@ export function LoginForm({
       return;
     }
 
-    window.location.href = "/servers";
+    router.push("/servers");
   }
   // -----------------
 

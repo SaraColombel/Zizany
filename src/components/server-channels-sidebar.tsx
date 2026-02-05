@@ -29,6 +29,10 @@ interface Channel {
   name: string;
 }
 
+interface RawChannel extends Partial<Channel> {
+  props?: Partial<Channel>;
+}
+
 interface ServerChannelsSidebarProps {
   serverId: string;
 
@@ -118,7 +122,7 @@ export function ServerChannelsSidebar({
         const json = await res.json();
 
         const normalized: Channel[] = (json.channels ?? [])
-          .map((raw: any) => {
+          .map((raw: RawChannel) => {
             const base = raw && raw.props ? raw.props : raw;
             if (!base) return null;
 

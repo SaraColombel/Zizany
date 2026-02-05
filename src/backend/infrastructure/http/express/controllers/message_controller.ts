@@ -29,29 +29,15 @@ export class MessageController {
 
   async create(req: Request, res: Response, next: NextFunction) {
     try {
-      // POST /api/channels/:id/messages
-      // We validate "content" + session user_id, and channel_id from params.
-      const channelId = Number(req.params.id);
+      const { channel_id, user_id, content } =
+        await createMessageValidator.validate({
+          channel_id: Number(req.params.id),
+          user_id: req.session.user_id,
+          content: req.body?.content,
+        });
 
-      const { channel_id, user_id, content } = await createMessageValidator.validate({
-        channel_id: channelId,
-        user_id: req.session.user_id,
-        content: req.body?.content,
-      });
-
-      const repo = new PrismaMessageRepository();
-
-      // Create and return DTO for realtime broadcast + REST response
-      const dto = await repo.createAndReturn({
-        channel_id,
-        user_id: Number(user_id),
-        content: String(content).trim(),
-      } as any);
-
-      getSocketServer()?.to(`channel:${channel_id}`).emit("message:new", dto);
-
-      return res.status(201).json({ message: dto });
-    } catch (err: any) {
+      return res.status(201).json({ ok: true });
+    } catch (err: unknown) {
       if (err instanceof ValidationError) {
         return res.status(422).json({ err });
       }

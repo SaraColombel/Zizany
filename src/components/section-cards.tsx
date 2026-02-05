@@ -116,7 +116,7 @@ export function SectionCards() {
                     })
                     await refresh()
                     router.push(`/servers/${server.id}`)
-                  } catch (err) {
+                  } catch {
                     setJoinErrors((prev) => ({
                       ...prev,
                       [server.id]: "Network error while joining",

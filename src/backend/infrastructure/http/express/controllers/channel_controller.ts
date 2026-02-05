@@ -48,7 +48,7 @@ export class ChannelController {
       });
 
       return res.status(201).json({ ok: true, channel });
-    } catch (err: any) {
+    } catch (err) {
       if (err instanceof ValidationError) {
         return res.status(422).json({ err });
       }

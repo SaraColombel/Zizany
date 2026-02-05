@@ -51,12 +51,14 @@ function isHttpError(err: unknown): err is HttpError {
 
 function isMembershipUniqueError(error: unknown) {
   const err = error as { code?: string; meta?: { target?: string[] } };
-  return (
-    err?.code === "P2002" &&
-    Array.isArray(err?.meta?.target) &&
-    err.meta?.target?.includes("user_id") &&
-    err.meta?.target?.includes("server_id")
-  );
+  if (err?.code !== "P2002") return false;
+
+  const target = err?.meta?.target;
+  if (!Array.isArray(target)) return false;
+
+  const hasUser = target.includes("user_id");
+  const hasServer = target.includes("server_id");
+  return hasUser && hasServer;
 }
 
 async function createInviteWithRetry(
@@ -135,111 +137,137 @@ export class InvitationController {
     }
   }
 
-  async accept(req: Request, res: Response, next: NextFunction) {
-    try {
-      const userId = Number(req.session.user_id);
-      const rawCode = req.body?.code;
+  getUserIdOr401(req: Request, res: Response): number | null {
+    const userId = Number(req.session.user_id);
+    if (!Number.isFinite(userId)) {
+      res.status(401).json({ message: "Unauthorized" });
+      return null;
+    }
+    return userId;
+  }
 
-      if (!Number.isFinite(userId)) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
+  getCodeOr400(req: Request, res: Response): string | null {
+    const rawCode = req.body?.code;
+    if (typeof rawCode !== "string") {
+      res.status(400).json({ message: "code must be a string" });
+      return null;
+    }
+    const code = rawCode.trim();
+    if (!code) {
+      res.status(400).json({ message: "code is required" });
+      return null;
+    }
+    return code;
+  }
 
-      if (typeof rawCode !== "string") {
-        return res.status(400).json({ message: "code must be a string" });
-      }
+  async getInvitationOr404Or409(code: string, res: Response) {
+    const invitation = await prisma.invitations.findUnique({ where: { code } });
 
-      const code = rawCode.trim();
-      if (!code) {
-        return res.status(400).json({ message: "code is required" });
-      }
+    if (!invitation) {
+      res.status(404).json({ message: "Invitation not found" });
+      return null;
+    }
 
-      const invitation = await prisma.invitations.findUnique({
-        where: { code },
+    if (invitation.used_at) {
+      res.status(409).json({ message: "Invitation already used" });
+      return null;
+    }
+
+    if (invitation.expires_at && invitation.expires_at < new Date()) {
+      res.status(404).json({ message: "Invitation expired" });
+      return null;
+    }
+
+    return invitation;
+  }
+
+
+  async consumeInviteAndCreateMembership(params: {
+    invitationId: number;
+    userId: number;
+    serverId: number;
+  }) {
+    const { invitationId, userId, serverId } = params;
+
+    return prisma.$transaction(async (tx) => {
+      const consumed = await tx.invitations.updateMany({
+        where: { id: invitationId, used_at: null },
+        data: { used_at: new Date(), used_by_user_id: userId },
       });
 
-      if (!invitation) {
-        return res.status(404).json({ message: "Invitation not found" });
+      if (consumed.count === 0) {
+        throw httpError(409, "Invitation already used");
       }
 
-      if (invitation.used_at) {
-        return res.status(409).json({ message: "Invitation already used" });
+      try {
+        return await tx.memberships.create({
+          data: { user_id: userId, server_id: serverId, role_id: ROLE_MEMBER },
+        });
+      } catch (error) {
+        if (isMembershipUniqueError(error)) {
+          throw httpError(409, "Already a member");
+        }
+        throw error;
       }
+    });
+  }
 
-      if (invitation.expires_at && invitation.expires_at < new Date()) {
-        return res.status(404).json({ message: "Invitation expired" });
-      }
+  async getUsername(req: Request, userId: number) {
+    if (typeof req.session.username === "string") return req.session.username;
 
-      const server = await new PrismaServerRepository().find_by_id(
-        invitation.server_id,
-      );
-      if (!server) {
-        return res.status(404).json({ message: "Server not found" });
-      }
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: { username: true },
+    });
+
+    return user?.username ?? `User ${userId}`;
+  }
+
+  emitMemberJoined(serverId: number, payload: { userId: number; username: string }) {
+    const io = getSocketServer();
+    if (!io) return;
+    io.to(`server:${serverId}`).emit("server:member_joined", {
+      serverId,
+      userId: payload.userId,
+      username: payload.username,
+    });
+  }
+
+  accept = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = this.getUserIdOr401(req, res);
+      if (userId == null) return;
+
+      const code = this.getCodeOr400(req, res);
+      if (code == null) return;
+
+      const invitation = await this.getInvitationOr404Or409(code, res);
+      if (!invitation) return;
+
+      const server = await new PrismaServerRepository().find_by_id(invitation.server_id);
+      if (!server) return res.status(404).json({ message: "Server not found" });
 
       const existing = await new PrismaMembershipRepository().find_by_user_and_server(
         userId,
         invitation.server_id,
       );
-      if (existing) {
-        return res.status(409).json({ message: "Already a member" });
-      }
+      if (existing) return res.status(409).json({ message: "Already a member" });
 
-      const membership = await prisma.$transaction(async (tx) => {
-        const consumed = await tx.invitations.updateMany({
-          where: { id: invitation.id, used_at: null },
-          data: { used_at: new Date(), used_by_user_id: userId },
-        });
-
-        if (consumed.count === 0) {
-          throw httpError(409, "Invitation already used");
-        }
-
-        try {
-          return await tx.memberships.create({
-            data: {
-              user_id: userId,
-              server_id: invitation.server_id,
-              role_id: ROLE_MEMBER,
-            },
-          });
-        } catch (error) {
-          if (isMembershipUniqueError(error)) {
-            throw httpError(409, "Already a member");
-          }
-          throw error;
-        }
+      const membership = await this.consumeInviteAndCreateMembership({
+        invitationId: invitation.id,
+        userId,
+        serverId: invitation.server_id,
       });
 
-      const username =
-        typeof req.session.username === "string"
-          ? req.session.username
-          : (
-            await prisma.users.findUnique({
-              where: { id: userId },
-              select: { username: true },
-            })
-          )?.username ??
-          `User ${userId}`;
+      const username = await this.getUsername(req, userId);
+      this.emitMemberJoined(invitation.server_id, { userId, username });
 
-      const io = getSocketServer();
-      if (io) {
-        io.to(`server:${invitation.server_id}`).emit("server:member_joined", {
-          serverId: invitation.server_id,
-          userId,
-          username,
-        });
-      }
-
-      return res.status(201).json({
-        ok: true,
-        membership,
-        server: server.props,
-      });
+      return res.status(201).json({ ok: true, membership, server: server.props });
     } catch (err) {
       if (isHttpError(err)) {
         return res.status(err.status ?? 500).json({ message: err.message });
       }
       next(err);
     }
-  }
+  };
 }

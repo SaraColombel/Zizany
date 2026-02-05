@@ -1,6 +1,6 @@
 import { Server as IOServer } from "socket.io";
 import type http from "http";
-import type { RequestHandler } from "express";
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
 import {
   getOnlineUserIdSet,
@@ -9,6 +9,18 @@ import {
 } from "@/backend/infrastructure/ws/presence_store";
 
 let ioRef: IOServer | null = null;
+
+interface SocketSession {
+  user_id?: number | string;
+}
+
+interface SocketRequest extends http.IncomingMessage {
+  session?: SocketSession;
+}
+
+function toSocketRequest(request: unknown): SocketRequest {
+  return request as SocketRequest;
+}
 
 export function getSocketServer() {
   return ioRef;
@@ -25,12 +37,17 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
 
   // Bridge express-session -> socket.request
   io.use((socket, next) => {
-    sessionMiddleware(socket.request as any, {} as any, next as any);
+    const req = toSocketRequest(socket.request);
+    sessionMiddleware(
+      req as unknown as Request,
+      {} as Response,
+      next as unknown as NextFunction,
+    );
   });
 
   // Auth guard (session-based)
   io.use((socket, next) => {
-    const req = socket.request as any;
+    const req = toSocketRequest(socket.request);
     const userId = req?.session?.user_id;
     if (!userId) return next(new Error("E_UNAUTHORIZED"));
     socket.data.userId = Number(userId);
