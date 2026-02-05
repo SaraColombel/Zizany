@@ -16,7 +16,6 @@ export class MessageController {
         messages,
       });
     } catch (err) {
-      console.log(err);
       next(err);
     }
   }
@@ -29,7 +28,6 @@ export class MessageController {
         message,
       });
     } catch (err) {
-      console.log(err);
       next(err);
     }
   }
@@ -52,7 +50,6 @@ export class MessageController {
       return res.status(201).json({ ok: true });
     } catch (err: any) {
       if (err instanceof ValidationError) {
-        console.log(err);
         return res.status(422).json({ err });
       }
       next(err);

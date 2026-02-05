@@ -6,7 +6,6 @@ import { getOnlineUserIds } from "@/backend/infrastructure/ws/presence_store";
 import { PrismaServerMapper } from "@/backend/infrastructure/persistence/prisma/mappers/prisma_server_mapper";
 import type { ServerProperties } from "@/backend/domain/entities/server";
 
-
 const ROLE_OWNER = 1;
 export class ServerController {
   async all(req: Request, res: Response, next: NextFunction) {
@@ -25,10 +24,7 @@ export class ServerController {
       const servers = await prisma.servers.findMany({
         where: joinedServerIds.length
           ? {
-              OR: [
-                { is_public: true },
-                { id: { in: joinedServerIds } },
-              ],
+              OR: [{ is_public: true }, { id: { in: joinedServerIds } }],
             }
           : { is_public: true },
         orderBy: { id: "asc" },
@@ -40,10 +36,10 @@ export class ServerController {
         serverIds.length === 0
           ? []
           : await prisma.memberships.groupBy({
-            by: ["server_id"],
-            where: { server_id: { in: serverIds } },
-            _count: { _all: true },
-          });
+              by: ["server_id"],
+              where: { server_id: { in: serverIds } },
+              _count: { _all: true },
+            });
       const membersByServer = new Map(
         membershipCounts.map((row) => [row.server_id, row._count._all]),
       );
@@ -53,13 +49,13 @@ export class ServerController {
         serverIds.length === 0 || onlineUserIds.length === 0
           ? []
           : await prisma.memberships.groupBy({
-            by: ["server_id"],
-            where: {
-              server_id: { in: serverIds },
-              user_id: { in: onlineUserIds },
-            },
-            _count: { _all: true },
-          });
+              by: ["server_id"],
+              where: {
+                server_id: { in: serverIds },
+                user_id: { in: onlineUserIds },
+              },
+              _count: { _all: true },
+            });
       const onlineByServer = new Map(
         onlineCounts.map((row) => [row.server_id, row._count._all]),
       );
@@ -94,7 +90,6 @@ export class ServerController {
         servers: payload,
       });
     } catch (err) {
-      console.log(err);
       next(err);
     }
   }
@@ -104,11 +99,12 @@ export class ServerController {
       const id = Number(req.params.id);
       const userId = Number(req.session.user_id);
       const server = await new PrismaServerRepository().find_by_id(id);
-      const membership = await new PrismaMembershipRepository().get_by_server_id(id);
+      const membership =
+        await new PrismaMembershipRepository().get_by_server_id(id);
 
       const isAdmin = server?.isAdmin(membership, id, userId) ?? false;
       const isOwner =
-        (server?.props.owner_id === userId) ||
+        server?.props.owner_id === userId ||
         (server?.isOwner(membership, id, userId) ?? false);
 
       return res.json({
@@ -120,7 +116,6 @@ export class ServerController {
         currentUserName: req.session.username ?? null,
       });
     } catch (err) {
-      console.log(err);
       next(err);
     }
   }
@@ -178,7 +173,6 @@ export class ServerController {
         server_id: server.props.id,
       });
     } catch (err) {
-      console.log(err);
       next(err);
     }
   }
@@ -198,12 +192,18 @@ export class ServerController {
         return res.status(404).json({ message: "Server not found" });
       }
 
-      const callerMembership = await new PrismaMembershipRepository().find_by_user_and_server(userId, serverId);
+      const callerMembership =
+        await new PrismaMembershipRepository().find_by_user_and_server(
+          userId,
+          serverId,
+        );
       const isOwner =
         server.props.owner_id === userId ||
         (callerMembership && callerMembership.props.role_id === ROLE_OWNER);
       if (!isOwner) {
-        return res.status(403).json({ message: "Only owner can update server" });
+        return res
+          .status(403)
+          .json({ message: "Only owner can update server" });
       }
 
       const { name, thumbnail, banner } = req.body;
@@ -216,8 +216,10 @@ export class ServerController {
         isPublic?: boolean;
       } = {};
       if (typeof name === "string") payload.name = name;
-      if (thumbnail === null || typeof thumbnail === "string") payload.thumbnail = thumbnail;
-      if (banner === null || typeof banner === "string") payload.banner = banner;
+      if (thumbnail === null || typeof thumbnail === "string")
+        payload.thumbnail = thumbnail;
+      if (banner === null || typeof banner === "string")
+        payload.banner = banner;
       if (typeof isPublic === "boolean") payload.isPublic = isPublic;
 
       const updated = await new PrismaServerRepository().update(
@@ -237,7 +239,7 @@ export class ServerController {
       const userId = Number(req.session.user_id);
 
       if (!Number.isFinite(serverId)) {
-        return res.status(400).json({ message: "Invalid server id"});
+        return res.status(400).json({ message: "Invalid server id" });
       }
 
       const server = await new PrismaServerRepository().find_by_id(serverId);
@@ -245,12 +247,18 @@ export class ServerController {
         return res.status(404).json({ message: "Server not found" });
       }
 
-      const callerMembership = await new PrismaMembershipRepository().find_by_user_and_server(userId, serverId);
+      const callerMembership =
+        await new PrismaMembershipRepository().find_by_user_and_server(
+          userId,
+          serverId,
+        );
       const isOwner =
         server.props.owner_id === userId ||
         (callerMembership && callerMembership.props.role_id === ROLE_OWNER);
       if (!isOwner) {
-        return res.status(403).json({ message: "Only owner can delete server" });
+        return res
+          .status(403)
+          .json({ message: "Only owner can delete server" });
       }
 
       await prisma.$transaction(async (tx) => {

@@ -18,7 +18,6 @@ export class ChannelController {
         channels,
       });
     } catch (err) {
-      console.log(err);
       next(err);
     }
   }
@@ -32,7 +31,6 @@ export class ChannelController {
         channel,
       });
     } catch (err) {
-      console.log(err);
       next(err);
     }
   }
