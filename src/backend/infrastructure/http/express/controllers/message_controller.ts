@@ -54,7 +54,7 @@ export class MessageController {
       const messageId = Number(req.params.messageId);
 
       if (!Number.isFinite(channelId) || !Number.isFinite(messageId)) {
-        return res.status(400).json({ message: "Invalid ids" });
+        return res.status(400).json({ message: "Invalid message id" });
       }
 
       await new PrismaMessageRepository().delete(messageId);
@@ -78,7 +78,7 @@ export class MessageController {
       const { content } = req.body;
 
       if (!Number.isFinite(channelId) || !Number.isFinite(messageId)) {
-        return res.status(400).json({ message: "Invalid ids" });
+        return res.status(400).json({ message: "Invalid message id" });
       }
 
       if (!content || typeof content !== "string") {
