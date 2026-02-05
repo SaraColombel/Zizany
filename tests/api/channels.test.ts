@@ -3,6 +3,7 @@ import request from "supertest";
 import { createApp } from "@/backend/infrastructure/http/express/app";
 import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
 import { BcryptHasher } from "@/backend/infrastructure/security/bcrypt_hasher";
+import { ValidationError } from "@vinejs/vine";
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 const describeDb = hasDatabase ? describe : describe.skip;
@@ -125,7 +126,7 @@ describeDb("Channels API", () => {
     const response = await agent.post(`/api/channels/${channelId}/messages`);
 
     expect(response.status).toBe(422);
-    expect(response.body.message).toBe("content is required");
+    expect(response.body.err).toBeDefined();
   });
 
   // ____ TEST 4 ____

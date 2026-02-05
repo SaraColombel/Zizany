@@ -100,25 +100,25 @@ CREATE UNIQUE INDEX "Invitations_code_key" ON "Invitations"("code");
 CREATE INDEX "Invitations_server_id_idx" ON "Invitations"("server_id");
 
 -- AddForeignKey
-ALTER TABLE "Servers" ADD CONSTRAINT "Servers_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Servers" ADD CONSTRAINT "Servers_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "Users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Memberships" ADD CONSTRAINT "Memberships_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Memberships" ADD CONSTRAINT "Memberships_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "Users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Memberships" ADD CONSTRAINT "Memberships_server_id_fkey" FOREIGN KEY ("server_id") REFERENCES "Servers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Memberships" ADD CONSTRAINT "Memberships_server_id_fkey" FOREIGN KEY ("server_id") REFERENCES "Servers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Memberships" ADD CONSTRAINT "Memberships_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "Roles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Memberships" ADD CONSTRAINT "Memberships_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "Roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Channels" ADD CONSTRAINT "Channels_server_id_fkey" FOREIGN KEY ("server_id") REFERENCES "Servers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Channels" ADD CONSTRAINT "Channels_server_id_fkey" FOREIGN KEY ("server_id") REFERENCES "Servers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Messages" ADD CONSTRAINT "Messages_channel_id_fkey" FOREIGN KEY ("channel_id") REFERENCES "Channels"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Messages" ADD CONSTRAINT "Messages_channel_id_fkey" FOREIGN KEY ("channel_id") REFERENCES "Channels"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Messages" ADD CONSTRAINT "Messages_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Messages" ADD CONSTRAINT "Messages_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "Users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Invitations" ADD CONSTRAINT "Invitations_server_id_fkey" FOREIGN KEY ("server_id") REFERENCES "Servers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
