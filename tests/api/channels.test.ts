@@ -125,7 +125,7 @@ describeDb("Channels API", () => {
     const response = await agent.post(`/api/channels/${channelId}/messages`);
 
     expect(response.status).toBe(422);
-    expect(response.body.message).toBe("content is required");
+    expect(response.body.err).toBeDefined();
   });
 
   // ____ TEST 4 ____

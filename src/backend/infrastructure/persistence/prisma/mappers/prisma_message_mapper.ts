@@ -1,6 +1,5 @@
 import { Message as DomainMessage } from "@/backend/domain/entities/message";
 import { Messages as PrismaMessage } from "@/../generated/prisma/client";
-import type { MessageDTO } from "@/backend/domain/dto/message_front_dto";
 
 export class PrismaMessageMapper {
   static toDomain(prismaMessage: PrismaMessage): DomainMessage {

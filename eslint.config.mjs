@@ -1,6 +1,7 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import unusedImports from "eslint-plugin-unused-imports";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -13,6 +14,25 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    plugins: {
+      "unused-imports": unusedImports,
+    },
+
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/consistent-type-definitions": ["error", "interface"],
+
+      "complexity": ["error", 8],
+      "max-params": ["error", 3],
+
+      "no-nested-ternary": "error",
+      "no-implicit-coercion": "error",
+
+      "prefer-const": "error",
+      "unused-imports/no-unused-imports": "error",
+    },
+  },
 ]);
 
 export default eslintConfig;

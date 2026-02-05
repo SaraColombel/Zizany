@@ -13,7 +13,7 @@ import {
     SelectLabel
 } from "@/components/ui/select";
 
-type Server = { id: string; name: string };
+interface Server { id: string; name: string }
 
 export function ServerSelect() {
     const router = useRouter();

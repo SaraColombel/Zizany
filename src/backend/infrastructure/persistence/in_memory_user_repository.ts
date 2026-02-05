@@ -12,7 +12,7 @@ export class InMemoryUserRepository implements UserRepository {
     this.#database = new Set();
   }
 
-  async find_by_email(email: String): Promise<User | undefined> {
+  async find_by_email(email: string): Promise<User | undefined> {
     return this.#database.values().find((user) => user.props.email === email);
   }
 
@@ -24,8 +24,10 @@ export class InMemoryUserRepository implements UserRepository {
     return [...this.#database];
   }
 
-  async save(payload: UserProperties): Promise<void> {
-    this.#database.add(User.create(payload));
+  async save(payload: UserProperties): Promise<User> {
+    const user = User.create(payload);
+    this.#database.add(user);
+    return user;
   }
 
   async verify_password(userId: number, password: string): Promise<boolean> {

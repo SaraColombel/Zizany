@@ -13,7 +13,6 @@ export class MessageController {
       const messages = await new PrismaMessageRepository().get_by_channel(channelId);
       return res.json({ messages });
     } catch (err) {
-      console.log(err);
       next(err);
     }
   }
@@ -24,7 +23,6 @@ export class MessageController {
       const message = await new PrismaMessageRepository().find_by_id(messageId);
       return res.json({ message });
     } catch (err) {
-      console.log(err);
       next(err);
     }
   }
@@ -55,7 +53,6 @@ export class MessageController {
       return res.status(201).json({ message: dto });
     } catch (err: any) {
       if (err instanceof ValidationError) {
-        console.log(err);
         return res.status(422).json({ err });
       }
       next(err);

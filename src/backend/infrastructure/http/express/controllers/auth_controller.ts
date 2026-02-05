@@ -49,8 +49,6 @@ export class AuthController {
         req.session.email = user.props.email;
         req.session.username = user.props.username;
 
-        console.log({ session: req.session });
-
         req.session.save((err) => {
           if (err)
             return res.status(500).json({

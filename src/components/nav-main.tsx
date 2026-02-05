@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useServers } from "@/components/servers-context"
 
-type NavItem = {
+interface NavItem {
   title: string
   url: string
   icon?: Icon
@@ -126,12 +126,12 @@ export function NavMain({
                   <SidebarMenuButton asChild tooltip={item.title} isActive={isActive}>
                     <Link href={item.url}>
                       {item.imageUrl ? (
-                        <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-md bg-muted">
+                        <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-muted">
                           {/* Future owner-uploaded server image */}
                           <img
                             src={item.imageUrl}
                             alt={item.title}
-                            className="h-5 w-5 object-cover"
+                            className="h-full w-full rounded-full object-cover"
                           />
                         </span>
                       ) : (

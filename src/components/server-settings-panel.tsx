@@ -35,7 +35,7 @@ const ROLE_OPTIONS = [
   { id: 3, label: "Member" },
 ]
 
-type Member = {
+interface Member {
   id: number
   user_id: number
   server_id: number
@@ -63,12 +63,14 @@ function getInitials(name: string) {
 export function ServerSettingsPanel({
   serverId,
   serverName,
+  isPublic: initialIsPublic,
   open,
   onOwnershipTransferred,
   onDeleted,
 }: {
   serverId: string
   serverName?: string
+  isPublic?: boolean
   open: boolean
   onOwnershipTransferred?: () => void
   onDeleted?: () => void
@@ -83,7 +85,10 @@ export function ServerSettingsPanel({
   const [savedName, setSavedName] = React.useState(serverName ?? "")
   const [nameError, setNameError] = React.useState<string | null>(null)
   const [nameSuccess, setNameSuccess] = React.useState<string | null>(null)
-  const [isSavingName, setIsSavingName] = React.useState(false)
+  const [isSavingChanges, setIsSavingChanges] = React.useState(false)
+  const [isPublic, setIsPublic] = React.useState(Boolean(initialIsPublic))
+  const [savedIsPublic, setSavedIsPublic] = React.useState(Boolean(initialIsPublic))
+  const [publicError, setPublicError] = React.useState<string | null>(null)
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [deleteError, setDeleteError] = React.useState<string | null>(null)
   const [ownerConfirm, setOwnerConfirm] = React.useState<{
@@ -104,10 +109,11 @@ export function ServerSettingsPanel({
     process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4000"
   const ownerConfirmPhrase = "I understand"
   const trimmedName = nameInput.trim()
-  const canSaveName =
-    trimmedName.length > 0 &&
-    trimmedName !== savedName.trim() &&
-    !isSavingName
+  const nameChanged = trimmedName !== savedName.trim()
+  const isPublicChanged = isPublic !== savedIsPublic
+  const canSaveChanges =
+    ((nameChanged && trimmedName.length > 0) || isPublicChanged) &&
+    !isSavingChanges
   const displayServerName =
     savedName.trim() || serverName?.trim() || "this server"
 
@@ -118,7 +124,10 @@ export function ServerSettingsPanel({
     setSavedName(nextName)
     setNameError(null)
     setNameSuccess(null)
-  }, [open, serverId, serverName])
+    setIsPublic(Boolean(initialIsPublic))
+    setSavedIsPublic(Boolean(initialIsPublic))
+    setPublicError(null)
+  }, [open, serverId, serverName, initialIsPublic])
 
   const loadMembers = React.useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -276,26 +285,36 @@ export function ServerSettingsPanel({
     updateRole,
   ])
 
-  const handleNameSave = React.useCallback(async () => {
-    if (!serverId || isSavingName) return
-    if (trimmedName.length === 0) {
-      setNameError("Server name is required")
-      return
-    }
-    if (trimmedName === savedName.trim()) {
-      return
+  const handleSaveChanges = React.useCallback(async () => {
+    if (!serverId || isSavingChanges) return
+
+    const updates: { name?: string; isPublic?: boolean } = {}
+
+    if (nameChanged) {
+      if (trimmedName.length === 0) {
+        setNameError("Server name is required")
+        return
+      }
+      updates.name = trimmedName
     }
 
-    setIsSavingName(true)
+    if (isPublicChanged) {
+      updates.isPublic = isPublic
+    }
+
+    if (Object.keys(updates).length === 0) return
+
+    setIsSavingChanges(true)
     setNameError(null)
     setNameSuccess(null)
+    setPublicError(null)
 
     try {
       const res = await fetch(`${apiBase}/api/servers/${serverId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name: trimmedName }),
+        body: JSON.stringify(updates),
       })
 
       if (!res.ok) {
@@ -309,20 +328,36 @@ export function ServerSettingsPanel({
           ? json.server.props.name
           : typeof json?.server?.name === "string"
             ? json.server.name
-            : trimmedName
+            : updates.name ?? savedName
 
       setSavedName(updatedName)
       setNameInput(updatedName)
-      setNameSuccess("Server name updated.")
+      setSavedIsPublic(
+        typeof updates.isPublic === "boolean"
+          ? updates.isPublic
+          : savedIsPublic,
+      )
+      setNameSuccess("Server updated.")
       await refresh()
     } catch (e) {
-      setNameError(
-        e instanceof Error ? e.message : "Failed to update server name",
+      setPublicError(
+        e instanceof Error ? e.message : "Failed to update server",
       )
     } finally {
-      setIsSavingName(false)
+      setIsSavingChanges(false)
     }
-  }, [apiBase, isSavingName, refresh, savedName, serverId, trimmedName])
+  }, [
+    apiBase,
+    isPublic,
+    isPublicChanged,
+    isSavingChanges,
+    nameChanged,
+    refresh,
+    savedIsPublic,
+    savedName,
+    serverId,
+    trimmedName,
+  ])
 
   const handleDeleteServer = React.useCallback(async () => {
     if (!serverId || isDeleting) return
@@ -392,14 +427,56 @@ export function ServerSettingsPanel({
               <div className="text-xs text-emerald-600">{nameSuccess}</div>
             )}
           </div>
+
+          <div className="mt-4 rounded-md border bg-muted/20 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium">Server visibility</div>
+                <div className="text-xs text-muted-foreground">
+                  A public server is visible in the servers list and joinable without invitation.
+                </div>
+              </div>
+              <Select
+                value={isPublic ? "public" : "private"}
+                onValueChange={(value) => {
+                  setIsPublic(value === "public")
+                  if (publicError) setPublicError(null)
+                  if (nameSuccess) setNameSuccess(null)
+                }}
+                disabled={isSavingChanges}
+              >
+                <SelectTrigger
+                  size="sm"
+                  className="min-w-28 cursor-pointer"
+                  aria-label="Server visibility"
+                >
+                  <SelectValue
+                    placeholder={isSavingChanges ? "Saving..." : "Visibility"}
+                  />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value="public">Public</SelectItem>
+                  <SelectItem value="private">Private</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {publicError && (
+              <div className="mt-2 text-xs text-destructive">{publicError}</div>
+            )}
+          </div>
+          <div className="mt-4 flex justify-end">
+            <div className="text-xs text-muted-foreground">
+              Remember to save your changes below.
+            </div>
+          </div>
           <div className="mt-4 flex justify-end">
             <Button
               type="button"
               size="sm"
-              onClick={handleNameSave}
-              disabled={!canSaveName}
+              onClick={handleSaveChanges}
+              disabled={!canSaveChanges}
             >
-              {isSavingName ? "Saving..." : "Save changes"}
+              {isSavingChanges ? "Saving..." : "Save changes"}
             </Button>
           </div>
         </div>

@@ -7,6 +7,7 @@ export interface ServerProperties {
   owner_id: number;
   thumbnail?: string;
   banner?: string;
+  isPublic?: boolean;
 }
 
 export class Server extends Entity<ServerProperties> {

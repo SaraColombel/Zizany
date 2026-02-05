@@ -5,7 +5,7 @@ import { MessageList, UiMessage } from "./message-list";
 import { MessageComposer } from "./message-composer";
 import { io, type Socket } from "socket.io-client";
 
-type ApiMessage = {
+interface ApiMessage {
   id?: number | string;
   channel_id?: number | string;
   user_id?: number | string;
@@ -14,7 +14,7 @@ type ApiMessage = {
   updated_at?: string;
   user?: { id?: number | string; username?: string };
   props?: ApiMessage;
-};
+}
 
 function normalizeIncomingMessage(raw: any): UiMessage | null {
   if (!raw) return null;
@@ -667,7 +667,7 @@ export function ChatPane({
               socket.emit("typing:stop", { channelId: Number(channelId) });
             }
           }}
-          disabled={!!error}
+          disabled={Boolean(error)}
         />
       </div>
     </div>

@@ -18,7 +18,6 @@ export class ChannelController {
         channels,
       });
     } catch (err) {
-      console.log(err);
       next(err);
     }
   }
@@ -32,7 +31,6 @@ export class ChannelController {
         channel,
       });
     } catch (err) {
-      console.log(err);
       next(err);
     }
   }
@@ -41,7 +39,7 @@ export class ChannelController {
     try {
       const { name, server_id } = await createChannelValidator.validate({
         name: await req.body.name,
-        server_id: parseInt(req.params.id[0]),
+        server_id: Number(req.params.id),
       });
 
       const channel = await new PrismaChannelRepository().save({
@@ -61,7 +59,7 @@ export class ChannelController {
   async update(req: Request, res: Response, next: NextFunction) {
     try {
       const { id, name } = await updateChannelValidator.validate({
-        id: parseInt(req.params.id[0]),
+        id: Number(req.params.channelId),
         name: await req.body.name,
       });
 

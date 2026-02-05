@@ -2,23 +2,24 @@
 
 import * as React from "react";
 
-export type Server = {
+export interface Server {
   id: number;
   name: string;
   thumbnail: string | null;
   banner: string | null;
+  isPublic: boolean;
   members: number;
   onlineMembers: number;
   isMember: boolean;
   canLeave: boolean;
   currentUserRoleId: number | null;
-};
+}
 
-type ServersContextType = {
+interface ServersContextType {
   servers: Server[];
   error: string | null;
   refresh: () => Promise<void>;
-};
+}
 
 const ServersContext = React.createContext<ServersContextType | null>(null);
 
@@ -74,6 +75,11 @@ export function ServersProvider({ children }: { children: React.ReactNode }) {
             typeof base.canLeave === "boolean"
               ? base.canLeave
               : isMember && roleId !== 1;
+          const rawIsPublic =
+            rawRecord && "isPublic" in rawRecord
+              ? rawRecord.isPublic
+              : base.isPublic;
+          const isPublic = typeof rawIsPublic === "boolean" ? rawIsPublic : false;
 
           return {
             id,
@@ -81,6 +87,7 @@ export function ServersProvider({ children }: { children: React.ReactNode }) {
             thumbnail:
               typeof base.thumbnail === "string" ? base.thumbnail : null,
             banner: typeof base.banner === "string" ? base.banner : null,
+            isPublic,
             members:
               typeof base.members === "number" && base.members >= 0
                 ? base.members
