@@ -1,9 +1,9 @@
-import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
-import { Channel } from "@/backend/domain/entities/channel";
-import { ChannelRepository } from "@/backend/domain/repositories/channel_repository";
-import { PrismaChannelMapper } from "@/backend/infrastructure/persistence/prisma/mappers/prisma_channel_mapper";
+import { prisma } from "../../../persistence/prisma/prisma.client.js";
+import { Channel } from "../../../../domain/entities/channel.js";
+import { ChannelRepository } from "../../../../domain/repositories/channel_repository.js";
+import { PrismaChannelMapper } from "../../../persistence/prisma/mappers/prisma_channel_mapper.js";
 
-import type { ChannelProperties } from "@/backend/domain/entities/channel";
+import type { ChannelProperties } from "../../../../domain/entities/channel.js";
 
 export class PrismaChannelRepository extends ChannelRepository {
   async find_by_id(id: number): Promise<Channel | undefined> {

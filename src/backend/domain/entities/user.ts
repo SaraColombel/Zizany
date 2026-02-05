@@ -1,4 +1,4 @@
-import { Entity } from "@/backend/domain/core/entity";
+import { Entity } from "../core/entity.js";
 
 export interface UserProperties {
   id: number;

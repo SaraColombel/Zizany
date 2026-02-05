@@ -1,10 +1,10 @@
-import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
-import { Message } from "@/backend/domain/entities/message";
-import { MessageRepository } from "@/backend/domain/repositories/message_repository";
-import { PrismaMessageMapper } from "@/backend/infrastructure/persistence/prisma/mappers/prisma_message_mapper";
-import type { MessageDTO } from "@/backend/domain/dto/message_front_dto";
+import { prisma } from "../../../persistence/prisma/prisma.client.js";
+import { Message } from "../../../../domain/entities/message.js";
+import { MessageRepository } from "../../../../domain/repositories/message_repository.js";
+import { PrismaMessageMapper } from "../../../persistence/prisma/mappers/prisma_message_mapper.js";
+import type { MessageDTO } from "../../../../domain/dto/message_front_dto.js";
 
-import type { MessageProperties } from "@/backend/domain/entities/message";
+import type { MessageProperties } from "../../../../domain/entities/message.js";
 
 export class PrismaMessageRepository extends MessageRepository {
   async find_by_id(id: number): Promise<Message | undefined> {

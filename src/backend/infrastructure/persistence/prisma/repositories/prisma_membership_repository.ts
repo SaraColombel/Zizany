@@ -1,9 +1,9 @@
-import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
-import { Membership } from "@/backend/domain/entities/membership";
-import { MembershipRepository } from "@/backend/domain/repositories/membership_repository";
-import { PrismaMembershipMapper } from "@/backend/infrastructure/persistence/prisma/mappers/prisma_membership_mapper";
+import { prisma } from "../../../persistence/prisma/prisma.client.js";
+import { Membership } from "../../../../domain/entities/membership.js";
+import { MembershipRepository } from "../../../../domain/repositories/membership_repository.js";
+import { PrismaMembershipMapper } from "../../../persistence/prisma/mappers/prisma_membership_mapper.js";
 
-import type { MembershipProperties } from "@/backend/domain/entities/membership";
+import type { MembershipProperties } from "../../../../domain/entities/membership.js";
 
 export class PrismaMembershipRepository extends MembershipRepository {
   async find_by_id(id: number): Promise<Membership | undefined> {
@@ -56,7 +56,10 @@ export class PrismaMembershipRepository extends MembershipRepository {
     return;
   }
 
-  async find_by_user_and_server(user_id: number, server_id: number): Promise<Membership | undefined> {
+  async find_by_user_and_server(
+    user_id: number,
+    server_id: number,
+  ): Promise<Membership | undefined> {
     const data = await prisma.memberships.findFirst({
       where: { user_id, server_id },
     });
@@ -67,16 +70,23 @@ export class PrismaMembershipRepository extends MembershipRepository {
     }
   }
 
-  async delete_by_user_and_server(user_id: number, server_id: number): Promise<void> {
+  async delete_by_user_and_server(
+    user_id: number,
+    server_id: number,
+  ): Promise<void> {
     await prisma.memberships.deleteMany({
       where: { user_id, server_id },
     });
   }
 
-  async update_role(user_id: number, server_id: number, role_id: number): Promise<void> {
+  async update_role(
+    user_id: number,
+    server_id: number,
+    role_id: number,
+  ): Promise<void> {
     await prisma.memberships.updateMany({
       where: { user_id, server_id },
-      data: { role_id }
+      data: { role_id },
     });
   }
 }

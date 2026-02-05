@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { ChannelController } from "../controllers/channel_controller";
-import { MessageController } from "../controllers/message_controller";
+import { ChannelController } from "../controllers/channel_controller.js";
+import { MessageController } from "../controllers/message_controller.js";
 
 const router = Router({ mergeParams: true });
 const channelController = new ChannelController();

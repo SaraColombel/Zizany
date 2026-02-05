@@ -1,12 +1,12 @@
-import { PrismaUserRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_user_repository";
+import { PrismaUserRepository } from "../../../persistence/prisma/repositories/prisma_user_repository.js";
 import {
   loginValidator,
   registerValidator,
-} from "@/backend/infrastructure/validators/vine/auth_validator";
+} from "../../../validators/vine/auth_validator.js";
 import { ValidationError } from "@vinejs/vine";
 import { NextFunction, Request, Response } from "express";
 
-import { BcryptHasher } from "@/backend/infrastructure/security/bcrypt_hasher";
+import { BcryptHasher } from "../../../security/bcrypt_hasher.js";
 
 const hasher = new BcryptHasher();
 

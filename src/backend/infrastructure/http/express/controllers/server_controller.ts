@@ -1,10 +1,10 @@
 import { NextFunction, Request, Response } from "express";
-import { PrismaServerRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_server_repository";
-import { PrismaMembershipRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_membership_repository";
-import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
-import { getOnlineUserIds } from "@/backend/infrastructure/ws/presence_store";
-import { PrismaServerMapper } from "@/backend/infrastructure/persistence/prisma/mappers/prisma_server_mapper";
-import type { ServerProperties } from "@/backend/domain/entities/server";
+import { PrismaServerRepository } from "../../../persistence/prisma/repositories/prisma_server_repository.js";
+import { PrismaMembershipRepository } from "../../../persistence/prisma/repositories/prisma_membership_repository.js";
+import { prisma } from "../../../persistence/prisma/prisma.client.js";
+import { getOnlineUserIds } from "../../../ws/presence_store.js";
+import { PrismaServerMapper } from "../../../persistence/prisma/mappers/prisma_server_mapper.js";
+import type { ServerProperties } from "../../../../domain/entities/server.js";
 
 const ROLE_OWNER = 1;
 
