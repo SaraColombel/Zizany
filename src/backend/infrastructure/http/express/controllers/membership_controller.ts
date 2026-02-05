@@ -95,6 +95,11 @@ export class MembershipController {
         return res.status(404).json({ message: "Server not found" });
       }
 
+      const existing = await new PrismaMembershipRepository().find_by_user_and_server(userId, serverId);
+      if (existing) {
+        return res.status(409).json({ message: "Already a member" });
+      }
+
       const rawCode = req.body?.code;
       const hasCodeField = typeof rawCode !== "undefined";
       const code = typeof rawCode === "string" ? rawCode.trim() : "";
@@ -111,10 +116,6 @@ export class MembershipController {
         return res.status(403).json({ message: "Server is private. Invitation code required." });
       }
 
-      const existing = await new PrismaMembershipRepository().find_by_user_and_server(userId, serverId);
-      if (existing) {
-        return res.status(409).json({ message: "Already a member" });
-      }
       if (!hasCodeField && !server.props.isPublic) {
         return res.status(403).json({ message: "Server is private. Invitation code required." });
       }
