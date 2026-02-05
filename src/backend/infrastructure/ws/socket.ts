@@ -10,6 +10,13 @@ import {
 
 let ioRef: IOServer | null = null;
 
+const ROLE_OWNER = 1;
+const ROLE_ADMIN = 2;
+
+function isModerator(roleId: number) {
+  return roleId === ROLE_OWNER || roleId === ROLE_ADMIN;
+}
+
 export function getSocketServer() {
   return ioRef;
 }
@@ -181,7 +188,11 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
         const membership = await prisma.memberships.findFirst({
           where: { server_id: msg.channel.server_id, user_id: userId },
         });
-        if (!membership) return socket.emit("error: permission", { code: "E_FORBIDDEN" });
+        if (!membership) return socket.emit("error:permission", { code: "E_FORBIDDEN" });
+
+        const isAuthor = msg.user_id === userId;
+        const canDelete = isAuthor || isModerator(membership.role_id);
+        if (!canDelete) return socket.emit("error:permission", { code: "E_FORBIDDEN" });
 
         await prisma.messages.delete({ where: { id: messageId } });
 
@@ -207,6 +218,10 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
           where: { server_id: msg.channel.server_id, user_id: userId },
         });
         if (!membership) return socket.emit("error:permission", { code: "E_FORBIDDEN" });
+
+        if (msg.user_id !== userId) {
+          return socket.emit("error:permission", { code: "E_FORBIDDEN" });
+        }
 
         const updated = await prisma.messages.update({
           where: { id: messageId },
