@@ -5,7 +5,7 @@ import { IconUsers, IconChevronLeft, IconChevronRight } from "@tabler/icons-reac
 import { io, type Socket } from "socket.io-client"
 import { cn } from "@/lib/utils"
 
-type Member = {
+interface Member {
   id: number
   user_id: number
   server_id: number

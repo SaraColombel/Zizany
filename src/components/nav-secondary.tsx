@@ -50,11 +50,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useServers } from "@/components/servers-context";
 
-type NavItem = {
+interface NavItem {
   title: string;
   url: string;
   icon: Icon;
-};
+}
 
 /**
  * Client-side constraints for uploaded images.

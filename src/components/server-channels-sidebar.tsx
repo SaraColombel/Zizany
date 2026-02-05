@@ -23,13 +23,13 @@ import { Input } from "@/components/ui/input";
  * Minimal channel shape used in the sidebar.
  * Matches the subset of fields returned by the channels API.
  */
-type Channel = {
+interface Channel {
   id: number;
   server_id: number;
   name: string;
-};
+}
 
-type ServerChannelsSidebarProps = {
+interface ServerChannelsSidebarProps {
   serverId: string;
 
   /**
@@ -43,7 +43,7 @@ type ServerChannelsSidebarProps = {
    *   in the parent layout and pass it down here.
    */
   canManageChannels?: boolean;
-};
+}
 
 export function ServerChannelsSidebar({
   serverId,

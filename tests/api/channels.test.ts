@@ -3,7 +3,6 @@ import request from "supertest";
 import { createApp } from "@/backend/infrastructure/http/express/app";
 import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
 import { BcryptHasher } from "@/backend/infrastructure/security/bcrypt_hasher";
-import { ValidationError } from "@vinejs/vine";
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 const describeDb = hasDatabase ? describe : describe.skip;

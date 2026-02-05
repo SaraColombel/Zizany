@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useServers } from "@/components/servers-context"
 
-type NavItem = {
+interface NavItem {
   title: string
   url: string
   icon?: Icon

@@ -20,12 +20,12 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-type SignupValues = {
+interface SignupValues {
   username: string;
   email: string;
   password: string;
   confirmPassword: string;
-};
+}
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   const {

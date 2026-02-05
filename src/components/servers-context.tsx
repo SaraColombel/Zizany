@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-export type Server = {
+export interface Server {
   id: number;
   name: string;
   thumbnail: string | null;
@@ -13,13 +13,13 @@ export type Server = {
   isMember: boolean;
   canLeave: boolean;
   currentUserRoleId: number | null;
-};
+}
 
-type ServersContextType = {
+interface ServersContextType {
   servers: Server[];
   error: string | null;
   refresh: () => Promise<void>;
-};
+}
 
 const ServersContext = React.createContext<ServersContextType | null>(null);
 

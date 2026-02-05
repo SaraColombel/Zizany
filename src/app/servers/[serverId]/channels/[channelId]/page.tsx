@@ -3,12 +3,12 @@ import { cookies } from "next/headers";
 import { ChatPane } from "@/components/chat-pane";
 import { redirect } from "next/navigation";
 
-type ServerContext = {
+interface ServerContext {
   isAdmin?: boolean;
   isOwner?: boolean;
   currentUserId?: number | string | null;
   currentUserName?: string | null;
-};
+}
 
 export default async function ChannelPage({
   params,

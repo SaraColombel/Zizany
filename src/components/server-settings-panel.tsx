@@ -35,7 +35,7 @@ const ROLE_OPTIONS = [
   { id: 3, label: "Member" },
 ]
 
-type Member = {
+interface Member {
   id: number
   user_id: number
   server_id: number

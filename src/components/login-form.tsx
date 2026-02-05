@@ -22,10 +22,10 @@ import {
 import { Input } from "@/components/ui/input";
 
 // useForm : Define the shape of the form data
-type LoginValues = {
+interface LoginValues {
   email: string;
   password: string;
-};
+}
 // ------
 
 export function LoginForm({

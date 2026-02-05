@@ -12,7 +12,7 @@ export class InMemoryUserRepository implements UserRepository {
     this.#database = new Set();
   }
 
-  async find_by_email(email: String): Promise<User | undefined> {
+  async find_by_email(email: string): Promise<User | undefined> {
     return this.#database.values().find((user) => user.props.email === email);
   }
 

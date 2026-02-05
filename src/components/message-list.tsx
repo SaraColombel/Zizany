@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils"
  * - Flags like `isOptimistic` and `isFailed` are client-only
  *   and must never be persisted in the database.
  */
-export type UiMessage = {
+export interface UiMessage {
   id: string
   authorId?: string | number
   authorName: string
@@ -174,8 +174,8 @@ export function MessageList({
     <div className="flex flex-col gap-2 p-4">
       {messages.map((m) => {
         const createdAt = new Date(m.createdAt)
-        const canEdit = !!onEdit && (isOwnMessage(m) || canModerateOthers)
-        const canDelete = !!onDelete && (isOwnMessage(m) || canModerateOthers)
+        const canEdit = Boolean(onEdit) && (isOwnMessage(m) || canModerateOthers)
+        const canDelete = Boolean(onDelete) && (isOwnMessage(m) || canModerateOthers)
         const showMenu = canEdit || canDelete
         const ownMessage = isOwnMessage(m)
 

@@ -20,7 +20,6 @@ import * as React from "react"
 import {
   IconDatabase,
   IconCirclePlus,
-  IconSettings,
   IconList,
   IconPencil,
 } from "@tabler/icons-react"
@@ -51,7 +50,7 @@ const NavUser = dynamic(
  * This is NOT the full backend model.
  * Only the fields required for navigation are present.
  */
-type Server = {
+interface Server {
   id: number
   name: string
   thumbnail: string | null
