@@ -14,16 +14,18 @@ datasource db {
 }
 
 model Users {
-    id          Int           @id @default(autoincrement())
-    email       String        @unique
-    password    String
-    username    String
-    thumbnail   String?
-    servers     Servers[]
-    created_at  DateTime      @default(now())
-    updated_at  DateTime      @default(now()) @updatedAt
-    memberships Memberships[]
-    messages    Messages[]
+    id                   Int           @id @default(autoincrement())
+    email                String        @unique
+    password             String
+    username             String
+    thumbnail            String?
+    servers              Servers[]
+    created_at           DateTime      @default(now())
+    updated_at           DateTime      @default(now()) @updatedAt
+    memberships          Memberships[]
+    messages             Messages[]
+    created_invitations  Invitations[] @relation("InvitationsCreatedBy")
+    used_invitations     Invitations[] @relation("InvitationsUsedBy")
 }
 
 model Servers {
@@ -32,11 +34,13 @@ model Servers {
     owner_id    Int
     thumbnail   String?
     banner      String?
+    is_public   Boolean       @default(false)
     created_at  DateTime      @default(now())
     updated_at  DateTime      @default(now()) @updatedAt
     owner       Users         @relation(fields: [owner_id], references: [id])
     memberships Memberships[]
     channels    Channels[]
+    invitations Invitations[]
 }
 
 model Roles {
@@ -57,6 +61,8 @@ model Memberships {
     user       Users    @relation(fields: [user_id], references: [id])
     server     Servers  @relation(fields: [server_id], references: [id])
     role       Roles    @relation(fields: [role_id], references: [id])
+
+    @@unique([user_id, server_id])
 }
 
 model Channels {
@@ -78,4 +84,20 @@ model Messages {
     updated_at DateTime @default(now()) @updatedAt
     channel    Channels @relation(fields: [channel_id], references: [id])
     user       Users    @relation(fields: [user_id], references: [id])
+}
+
+model Invitations {
+    id                  Int       @id @default(autoincrement())
+    server_id           Int
+    code                String    @unique
+    created_by_user_id  Int
+    expires_at          DateTime?
+    used_at             DateTime?
+    used_by_user_id     Int?
+    created_at          DateTime  @default(now())
+    server              Servers   @relation(fields: [server_id], references: [id])
+    created_by          Users     @relation("InvitationsCreatedBy", fields: [created_by_user_id], references: [id])
+    used_by             Users?    @relation("InvitationsUsedBy", fields: [used_by_user_id], references: [id])
+
+    @@index([server_id])
 }

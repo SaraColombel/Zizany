@@ -2,11 +2,13 @@ import { Router } from "express";
 import { ServerController } from "../controllers/server_controller";
 import { MembershipController } from "../controllers/membership_controller";
 import { ChannelController } from "../controllers/channel_controller";
+import { InvitationController } from "../controllers/invitation_controller";
 
 const router = Router();
 const serverController = new ServerController();
 const membershipController = new MembershipController();
 const channelController = new ChannelController();
+const invitationController = new InvitationController();
 
 router.get("/", serverController.all);
 router.get("/:id", serverController.index);
@@ -27,5 +29,8 @@ router.delete("/:id", serverController.delete);
 // membership actions
 router.post("/:id/join", membershipController.join);
 router.delete("/:id/leave", membershipController.leave);
+
+// invitations
+router.post("/:id/invites", invitationController.create);
 
 export default router;

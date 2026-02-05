@@ -16,7 +16,21 @@ export class ServerController {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
+      const userMemberships = await prisma.memberships.findMany({
+        where: { user_id: userId },
+        select: { server_id: true, role_id: true },
+      });
+      const joinedServerIds = userMemberships.map((row) => row.server_id);
+
       const servers = await prisma.servers.findMany({
+        where: joinedServerIds.length
+          ? {
+              OR: [
+                { is_public: true },
+                { id: { in: joinedServerIds } },
+              ],
+            }
+          : { is_public: true },
         orderBy: { id: "asc" },
       });
       // return res.json({ servers });
@@ -50,19 +64,13 @@ export class ServerController {
         onlineCounts.map((row) => [row.server_id, row._count._all]),
       );
 
-      const userMemberships =
-        serverIds.length === 0
-          ? []
-          : await prisma.memberships.findMany({
-            where: {
-              user_id: userId,
-              server_id: { in: serverIds },
-            },
-            select: { server_id: true, role_id: true },
-          });
-      const joinedSet = new Set(userMemberships.map((row) => row.server_id));
+      const visibleServerSet = new Set(serverIds);
+      const visibleMemberships = userMemberships.filter((row) =>
+        visibleServerSet.has(row.server_id),
+      );
+      const joinedSet = new Set(visibleMemberships.map((row) => row.server_id));
       const roleByServer = new Map(
-        userMemberships.map((row) => [row.server_id, row.role_id]),
+        visibleMemberships.map((row) => [row.server_id, row.role_id]),
       );
 
       const payload = servers.map((server) => {
@@ -73,6 +81,7 @@ export class ServerController {
           name: server.name,
           thumbnail: server.thumbnail ?? null,
           banner: server.banner ?? null,
+          isPublic: server.is_public,
           members: membersByServer.get(server.id) ?? 0,
           onlineMembers: onlineByServer.get(server.id) ?? 0,
           isMember,
@@ -120,6 +129,8 @@ export class ServerController {
   async save(req: Request, res: Response, next: NextFunction) {
     try {
       const { name, thumbnail, banner } = req.body;
+      const isPublic =
+        typeof req.body?.isPublic === "boolean" ? req.body.isPublic : undefined;
       const owner_id = Number(req.session.user_id);
 
       if (!Number.isFinite(owner_id)) {
@@ -137,6 +148,7 @@ export class ServerController {
             owner_id,
             thumbnail: thumbnail ?? null,
             banner: banner ?? null,
+            is_public: isPublic ?? undefined,
           },
         });
 
@@ -195,14 +207,18 @@ export class ServerController {
       }
 
       const { name, thumbnail, banner } = req.body;
+      const isPublic =
+        typeof req.body?.isPublic === "boolean" ? req.body.isPublic : undefined;
       const payload: {
         name?: string;
         thumbnail?: string | null;
         banner?: string | null;
+        isPublic?: boolean;
       } = {};
       if (typeof name === "string") payload.name = name;
       if (thumbnail === null || typeof thumbnail === "string") payload.thumbnail = thumbnail;
       if (banner === null || typeof banner === "string") payload.banner = banner;
+      if (typeof isPublic === "boolean") payload.isPublic = isPublic;
 
       const updated = await new PrismaServerRepository().update(
         serverId,

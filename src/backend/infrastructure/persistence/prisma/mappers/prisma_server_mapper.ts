@@ -9,6 +9,7 @@ export class PrismaServerMapper {
       owner_id: prismaServer.owner_id,
       banner: prismaServer.banner ?? undefined,
       thumbnail: prismaServer.thumbnail ?? undefined,
+      isPublic: prismaServer.is_public,
     });
   }
 }

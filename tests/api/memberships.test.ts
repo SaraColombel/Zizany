@@ -29,6 +29,12 @@ const targetUser = {
   username: "targetuser",
 };
 
+const extraUser = {
+  email: "test.membership.extra@local.com",
+  password: "extra-password",
+  username: "extrauser",
+};
+
 const hasher = new BcryptHasher();
 
 describeDb("Memberships API", () => {
@@ -36,13 +42,16 @@ describeDb("Memberships API", () => {
   let ownerId = 0;
   let memberId = 0;
   let targetId = 0;
+  let extraId = 0;
   let ownedServerId = 0;
-  let joinServerId = 0;
+  let publicServerId = 0;
+  let privateServerId = 0;
   let leaveServerId = 0;
+  let inviteCode = "";
 
   beforeAll(async () => {
     await prisma.users.deleteMany({
-      where: { email: { in: [ownerUser.email, memberUser.email, targetUser.email] } },
+      where: { email: { in: [ownerUser.email, memberUser.email, targetUser.email, extraUser.email] } },
     });
 
     const owner = await prisma.users.create({
@@ -72,25 +81,40 @@ describeDb("Memberships API", () => {
     });
     targetId = target.id;
 
+    const extra = await prisma.users.create({
+      data: {
+        email: extraUser.email,
+        username: extraUser.username,
+        password: await hasher.hash(extraUser.password),
+      },
+    });
+    extraId = extra.id;
+
     const ownedServer = await prisma.servers.create({
-      data: { name: "Owned server", owner_id: ownerId },
+      data: { name: "Owned server", owner_id: ownerId, is_public: false },
     });
     ownedServerId = ownedServer.id;
 
-    const joinServer = await prisma.servers.create({
-      data: { name: "Join server", owner_id: ownerId },
+    const publicServer = await prisma.servers.create({
+      data: { name: "Public join server", owner_id: ownerId, is_public: true },
     });
-    joinServerId = joinServer.id;
+    publicServerId = publicServer.id;
+
+    const privateServer = await prisma.servers.create({
+      data: { name: "Private join server", owner_id: ownerId, is_public: false },
+    });
+    privateServerId = privateServer.id;
 
     const leaveServer = await prisma.servers.create({
-      data: { name: "Leave server", owner_id: ownerId },
+      data: { name: "Leave server", owner_id: ownerId, is_public: false },
     });
     leaveServerId = leaveServer.id;
 
     await prisma.channels.createMany({
       data: [
         { server_id: ownedServerId, name: "general" },
-        { server_id: joinServerId, name: "general" },
+        { server_id: publicServerId, name: "general" },
+        { server_id: privateServerId, name: "general" },
         { server_id: leaveServerId, name: "general" },
       ],
     });
@@ -100,7 +124,8 @@ describeDb("Memberships API", () => {
         { user_id: ownerId, server_id: ownedServerId, role_id: ROLE_OWNER },
         { user_id: memberId, server_id: ownedServerId, role_id: ROLE_MEMBER },
         { user_id: targetId, server_id: ownedServerId, role_id: ROLE_MEMBER },
-        { user_id: ownerId, server_id: joinServerId, role_id: ROLE_OWNER },
+        { user_id: ownerId, server_id: publicServerId, role_id: ROLE_OWNER },
+        { user_id: ownerId, server_id: privateServerId, role_id: ROLE_OWNER },
         { user_id: ownerId, server_id: leaveServerId, role_id: ROLE_OWNER },
         { user_id: memberId, server_id: leaveServerId, role_id: ROLE_MEMBER },
       ],
@@ -109,19 +134,22 @@ describeDb("Memberships API", () => {
 
   afterAll(async () => {
     await prisma.messages.deleteMany({
-      where: { channel: { server_id: { in: [ownedServerId, joinServerId, leaveServerId] } } },
+      where: { channel: { server_id: { in: [ownedServerId, publicServerId, privateServerId, leaveServerId] } } },
     });
     await prisma.channels.deleteMany({
-      where: { server_id: { in: [ownedServerId, joinServerId, leaveServerId] } },
+      where: { server_id: { in: [ownedServerId, publicServerId, privateServerId, leaveServerId] } },
+    });
+    await prisma.invitations.deleteMany({
+      where: { server_id: { in: [ownedServerId, publicServerId, privateServerId, leaveServerId] } },
     });
     await prisma.memberships.deleteMany({
-      where: { server_id: { in: [ownedServerId, joinServerId, leaveServerId] } },
+      where: { server_id: { in: [ownedServerId, publicServerId, privateServerId, leaveServerId] } },
     });
     await prisma.servers.deleteMany({
-      where: { id: { in: [ownedServerId, joinServerId, leaveServerId] } },
+      where: { id: { in: [ownedServerId, publicServerId, privateServerId, leaveServerId] } },
     });
     await prisma.users.deleteMany({
-      where: { email: { in: [ownerUser.email, memberUser.email, targetUser.email] } },
+      where: { email: { in: [ownerUser.email, memberUser.email, targetUser.email, extraUser.email] } },
     });
     await prisma.$disconnect();
   });
@@ -202,7 +230,7 @@ describeDb("Memberships API", () => {
   });
 
   // ____ TEST 6 ____
-  it("6. POST /api/servers/:id/join OK -> 201", async () => {
+  it("6. POST /api/servers/:id/join public -> 201", async () => {
     const agent = request.agent(app);
     const loginResponse = await agent
       .post("/api/auth/login")
@@ -210,14 +238,139 @@ describeDb("Memberships API", () => {
 
     expect(loginResponse.status).toBe(200);
 
-    const response = await agent.post(`/api/servers/${joinServerId}/join`);
+    const response = await agent.post(`/api/servers/${publicServerId}/join`);
 
     expect(response.status).toBe(201);
     expect(response.body.ok).toBe(true);
   });
 
   // ____ TEST 7 ____
-  it("7. DELETE /api/servers/:id/leave owner -> 403", async () => {
+  it("7. POST /api/servers/:id/join private without code -> 403", async () => {
+    const agent = request.agent(app);
+    const loginResponse = await agent
+      .post("/api/auth/login")
+      .send({ email: targetUser.email, password: targetUser.password });
+
+    expect(loginResponse.status).toBe(200);
+
+    const response = await agent.post(`/api/servers/${privateServerId}/join`);
+
+    expect(response.status).toBe(403);
+    expect(response.body.message).toBe(
+      "Server is private. Invitation code required.",
+    );
+  });
+
+  // ____ TEST 8 ____
+  it("8. POST /api/servers/:id/invites non admin -> 403", async () => {
+    const agent = request.agent(app);
+    const loginResponse = await agent
+      .post("/api/auth/login")
+      .send({ email: memberUser.email, password: memberUser.password });
+
+    expect(loginResponse.status).toBe(200);
+
+    const response = await agent.post(`/api/servers/${privateServerId}/invites`);
+
+    expect(response.status).toBe(403);
+    expect(response.body.message).toBe("Only owner or admin can create invites");
+  });
+
+  // ____ TEST 9 ____
+  it("9. POST /api/servers/:id/invites owner -> 201", async () => {
+    const agent = request.agent(app);
+    const loginResponse = await agent
+      .post("/api/auth/login")
+      .send({ email: ownerUser.email, password: ownerUser.password });
+
+    expect(loginResponse.status).toBe(200);
+
+    const response = await agent.post(`/api/servers/${privateServerId}/invites`);
+
+    expect(response.status).toBe(201);
+    expect(typeof response.body.code).toBe("string");
+    inviteCode = response.body.code;
+  });
+
+  // ____ TEST 10 ____
+  it("10. POST /api/invites/accept invite OK -> 201", async () => {
+    const agent = request.agent(app);
+    const loginResponse = await agent
+      .post("/api/auth/login")
+      .send({ email: memberUser.email, password: memberUser.password });
+
+    expect(loginResponse.status).toBe(200);
+
+    const response = await agent
+      .post("/api/invites/accept")
+      .send({ code: inviteCode });
+
+    expect(response.status).toBe(201);
+    expect(response.body.ok).toBe(true);
+
+    const membership = await prisma.memberships.findFirst({
+      where: { user_id: memberId, server_id: privateServerId },
+    });
+    expect(membership).toBeTruthy();
+  });
+
+  // ____ TEST 11 ____
+  it("11. POST /api/invites/accept invite reused -> 409", async () => {
+    const agent = request.agent(app);
+    const loginResponse = await agent
+      .post("/api/auth/login")
+      .send({ email: targetUser.email, password: targetUser.password });
+
+    expect(loginResponse.status).toBe(200);
+
+    const response = await agent
+      .post("/api/invites/accept")
+      .send({ code: inviteCode });
+
+    expect(response.status).toBe(409);
+    expect(response.body.message).toBe("Invitation already used");
+  });
+
+  // ____ TEST 12 ____
+  it("12. POST /api/invites/accept invite concurrent -> 201/409", async () => {
+    const ownerAgent = request.agent(app);
+    const ownerLogin = await ownerAgent
+      .post("/api/auth/login")
+      .send({ email: ownerUser.email, password: ownerUser.password });
+
+    expect(ownerLogin.status).toBe(200);
+
+    const inviteResponse = await ownerAgent.post(
+      `/api/servers/${privateServerId}/invites`,
+    );
+    expect(inviteResponse.status).toBe(201);
+    const parallelCode = inviteResponse.body.code;
+
+    const agentA = request.agent(app);
+    const agentB = request.agent(app);
+
+    await agentA
+      .post("/api/auth/login")
+      .send({ email: targetUser.email, password: targetUser.password });
+    await agentB
+      .post("/api/auth/login")
+      .send({ email: extraUser.email, password: extraUser.password });
+
+    const [resA, resB] = await Promise.all([
+      agentA
+        .post("/api/invites/accept")
+        .send({ code: parallelCode }),
+      agentB
+        .post("/api/invites/accept")
+        .send({ code: parallelCode }),
+    ]);
+
+    const statuses = [resA.status, resB.status].sort();
+    expect(statuses).toEqual([201, 409]);
+  });
+
+  // ____ TEST 13 ____
+  it("13. DELETE /api/servers/:id/leave owner -> 403", async () => {
     const agent = request.agent(app);
     const loginResponse = await agent
       .post("/api/auth/login")
@@ -233,8 +386,8 @@ describeDb("Memberships API", () => {
     );
   });
 
-  // ____ TEST 8 ____
-  it("8. DELETE /api/servers/:id/leave OK -> 204", async () => {
+  // ____ TEST 14 ____
+  it("14. DELETE /api/servers/:id/leave OK -> 204", async () => {
     const agent = request.agent(app);
     const loginResponse = await agent
       .post("/api/auth/login")
@@ -252,8 +405,8 @@ describeDb("Memberships API", () => {
     expect(membership).toBeNull();
   });
 
-  // ____ TEST 9 ____
-  it("9. PUT /api/servers/:id/members/:userId caller not owner -> 403", async () => {
+  // ____ TEST 15 ____
+  it("15. PUT /api/servers/:id/members/:userId caller not owner -> 403", async () => {
     const agent = request.agent(app);
     const loginResponse = await agent
       .post("/api/auth/login")
@@ -269,8 +422,8 @@ describeDb("Memberships API", () => {
     expect(response.body.message).toBe("Only owner can update roles");
   });
 
-  // ____ TEST 10 ____
-  it("10. PUT /api/servers/:id/members/:userId update role -> 204", async () => {
+  // ____ TEST 16 ____
+  it("16. PUT /api/servers/:id/members/:userId update role -> 204", async () => {
     const agent = request.agent(app);
     const loginResponse = await agent
       .post("/api/auth/login")
