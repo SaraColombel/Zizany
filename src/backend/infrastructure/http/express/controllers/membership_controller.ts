@@ -9,7 +9,9 @@ const ROLE_OWNER = 1;
 const ROLE_ADMIN = 2;
 const ROLE_MEMBER = 3;
 
-type HttpError = Error & { status?: number };
+interface HttpError extends Error {
+  status?: number;
+}
 
 function httpError(status: number, message: string): HttpError {
   const err = new Error(message) as HttpError;
@@ -31,10 +33,10 @@ function isMembershipUniqueError(error: unknown) {
   );
 }
 
-type JoinCodeInfo = {
+interface JoinCodeInfo {
   hasCode: boolean;
   code: string;
-};
+}
 
 function parseJoinIds(req: Request) {
   const serverId = Number(req.params.id);

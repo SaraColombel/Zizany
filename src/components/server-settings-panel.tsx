@@ -632,7 +632,7 @@ export function ServerSettingsPanel({
 
             <div className="mt-4 space-y-2">
               <label className="text-xs font-semibold tracking-wide text-muted-foreground">
-                TYPE "{ownerConfirmPhrase}" TO CONFIRM
+                TYPE `{ownerConfirmPhrase}` TO CONFIRM
               </label>
               <Input
                 value={ownerConfirmText}
@@ -700,7 +700,7 @@ export function ServerSettingsPanel({
 
             <div className="mt-4 space-y-2">
               <label className="text-xs font-semibold tracking-wide text-muted-foreground">
-                TYPE "{ownerConfirmPhrase}" TO CONFIRM
+                TYPE `{ownerConfirmPhrase}` TO CONFIRM
               </label>
               <Input
                 value={deleteConfirmText}

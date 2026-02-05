@@ -48,7 +48,7 @@ export class MessageController {
       });
 
       return res.status(201).json({ ok: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof ValidationError) {
         return res.status(422).json({ err });
       }

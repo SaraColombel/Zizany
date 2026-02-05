@@ -7,6 +7,66 @@ import { PrismaServerMapper } from "@/backend/infrastructure/persistence/prisma/
 import type { ServerProperties } from "@/backend/domain/entities/server";
 
 const ROLE_OWNER = 1;
+
+interface ServerUpdatePayload {
+  name?: ServerProperties["name"];
+  thumbnail?: ServerProperties["thumbnail"];
+  banner?: ServerProperties["banner"];
+  isPublic?: ServerProperties["isPublic"];
+}
+
+interface EnsureOwnerParams {
+  ownerId: number;
+  userId: number;
+  roleId: number | null;
+  res: Response;
+}
+
+function parseServerId(req: Request, res: Response): number | null {
+  const serverId = Number(req.params.id);
+  if (!Number.isFinite(serverId)) {
+    res.status(400).json({ message: "Invalid server id" });
+    return null;
+  }
+  return serverId;
+}
+
+function getCallerRoleId(
+  membership: { props: { role_id: number } } | null,
+): number | null {
+  return membership?.props.role_id ?? null;
+}
+
+function ensureOwner({
+  ownerId,
+  userId,
+  roleId,
+  res,
+}: EnsureOwnerParams): boolean {
+  const isOwner = ownerId === userId || roleId === ROLE_OWNER;
+  if (!isOwner) {
+    res.status(403).json({ message: "Only owner can update server" });
+    return false;
+  }
+  return true;
+}
+
+function buildServerUpdatePayload(body: Request["body"]): ServerUpdatePayload {
+  const payload: ServerUpdatePayload = {};
+  const name = body?.name;
+  const thumbnail = body?.thumbnail;
+  const banner = body?.banner;
+  const isPublic = body?.isPublic;
+
+  if (typeof name === "string") payload.name = name;
+  if (thumbnail === null || typeof thumbnail === "string")
+    payload.thumbnail = thumbnail;
+  if (banner === null || typeof banner === "string") payload.banner = banner;
+  if (typeof isPublic === "boolean") payload.isPublic = isPublic;
+
+  return payload;
+}
+
 export class ServerController {
   async all(req: Request, res: Response, next: NextFunction) {
     try {
@@ -180,12 +240,9 @@ export class ServerController {
   // PUT /servers/:id (Owner only)
   async update(req: Request, res: Response, next: NextFunction) {
     try {
-      const serverId = Number(req.params.id);
+      const serverId = parseServerId(req, res);
+      if (serverId === null) return;
       const userId = Number(req.session.user_id);
-
-      if (!Number.isFinite(serverId)) {
-        return res.status(400).json({ message: "Invalid server id" });
-      }
 
       const server = await new PrismaServerRepository().find_by_id(serverId);
       if (!server) {
@@ -197,35 +254,20 @@ export class ServerController {
           userId,
           serverId,
         );
-      const isOwner =
-        server.props.owner_id === userId ||
-        (callerMembership && callerMembership.props.role_id === ROLE_OWNER);
-      if (!isOwner) {
-        return res
-          .status(403)
-          .json({ message: "Only owner can update server" });
+      const callerRoleId = getCallerRoleId(callerMembership);
+      if (
+        !ensureOwner({
+          ownerId: server.props.owner_id,
+          userId,
+          roleId: callerRoleId,
+          res,
+        })
+      ) {
+        return;
       }
 
-      const { name, thumbnail, banner } = req.body;
-      const isPublic =
-        typeof req.body?.isPublic === "boolean" ? req.body.isPublic : undefined;
-      const payload: {
-        name?: string;
-        thumbnail?: string | null;
-        banner?: string | null;
-        isPublic?: boolean;
-      } = {};
-      if (typeof name === "string") payload.name = name;
-      if (thumbnail === null || typeof thumbnail === "string")
-        payload.thumbnail = thumbnail;
-      if (banner === null || typeof banner === "string")
-        payload.banner = banner;
-      if (typeof isPublic === "boolean") payload.isPublic = isPublic;
-
-      const updated = await new PrismaServerRepository().update(
-        serverId,
-        payload as Partial<Omit<ServerProperties, "id" | "owner_id">>,
-      );
+      const payload = buildServerUpdatePayload(req.body);
+      const updated = await new PrismaServerRepository().update(serverId, payload);
       return res.json({ server: updated });
     } catch (err) {
       next(err);

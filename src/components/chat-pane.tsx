@@ -16,6 +16,15 @@ interface ApiMessage {
   props?: ApiMessage;
 }
 
+interface MessageNewPayload {
+  id?: number | string;
+  channel_id?: number | string;
+  content?: string;
+  created_at?: string;
+  updated_at?: string;
+  user?: { id?: number | string; username?: string };
+}
+
 /**
  * ChatPane
  * --------
@@ -226,12 +235,16 @@ export function ChatPane({
       setTypingUsers([]);
     });
 
-    socket.on("message:new", (msg:any) => {
-      const createdAt = msg.created_at;
-      const updatedAt = msg.updated_at;
+    socket.on("message:new", (msg: MessageNewPayload) => {
+      const createdAt =
+        typeof msg.created_at === "string"
+          ? msg.created_at
+          : new Date().toISOString();
+      const updatedAt =
+        typeof msg.updated_at === "string" ? msg.updated_at : createdAt;
 
       const uiMsg: UiMessage = {
-        id: String(msg.id),
+        id: String(msg.id ?? ""),
         authorId: msg.user?.id,
         authorName: msg.user?.username ?? `User ${msg.user?.id}`,
         content: String(msg.content ?? ""),
