@@ -58,6 +58,10 @@ export class PrismaServerRepository extends ServerRepository {
 
   async delete(id: number): Promise<void> {
     await prisma.$transaction(async (tx) => {
+      await tx.invitations.deleteMany({
+        where: { server_id: id },
+      });
+
       const channels = await tx.channels.findMany({
         where: { server_id: id },
         select: { id: true },
