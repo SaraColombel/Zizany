@@ -37,6 +37,7 @@ export class PrismaServerRepository extends ServerRepository {
         owner_id: payload.owner_id,
         thumbnail: payload.thumbnail,
         banner: payload.banner,
+        is_public: payload.isPublic ?? undefined,
       },
     });
     return PrismaServerMapper.toDomain(data);
@@ -45,7 +46,12 @@ export class PrismaServerRepository extends ServerRepository {
   async update(id: number, payload: Partial<Omit<ServerProperties, "id" | "owner_id">>): Promise<Server> {
     const data = await prisma.servers.update({
       where: { id },
-      data: payload,
+      data: {
+        name: payload.name,
+        thumbnail: payload.thumbnail,
+        banner: payload.banner,
+        is_public: payload.isPublic,
+      },
     });
     return PrismaServerMapper.toDomain(data);
   }

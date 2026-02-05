@@ -119,25 +119,49 @@ Existing tests already in repo:
    - Output: `409`, body `{ message: "Already a member" }`
    - Validates membership uniqueness.
 
-6. **POST /api/servers/:id/join - success**
-   - Output: `201`, body `{ ok: true }`
+6. **POST /api/servers/:id/join - private without code**
+   - Output: `403`, body `{ message: "Server is private. Invitation code required." }`
+   - Validates private server restriction.
+
+7. **POST /api/servers/:id/join - public success**
+   - Output: `201`, body `{ ok: true, membership, server }`
    - Validates join creation and side-effects.
 
-7. **DELETE /api/servers/:id/leave - owner**
-   - Output: `403`, body `{ message: "Owner cannot leave server (delete it instead)" }`
-   - Validates owner restriction.
+8. **POST /api/servers/:id/invites - non admin**
+   - Output: `403`, body `{ message: "Only owner or admin can create invites" }`
+   - Validates invite authorization.
 
-8. **DELETE /api/servers/:id/leave - success**
-   - Output: `204`
-   - Validates membership removal.
+9. **POST /api/servers/:id/invites - owner/admin success**
+   - Output: `201`, body `{ code, server_id, expires_at }`
+   - Validates invite creation.
 
-9. **PUT /api/servers/:id/members/:userId - caller not owner**
-   - Output: `403`, body `{ message: "Only owner can update roles" }`
-   - Validates role update permissions.
+10. **POST /api/invites/accept - invite success**
+    - Output: `201`, body `{ ok: true, membership, server }`
+    - Validates join via invite code.
 
-10. **PUT /api/servers/:id/members/:userId - update role**
-   - Output: `204`
-   - Validates role update success.
+11. **POST /api/invites/accept - invite reused**
+    - Output: `409`, body `{ message: "Invitation already used" }`
+    - Validates single-use codes.
+
+12. **POST /api/invites/accept - invite concurrent**
+    - Output: `201/409`
+    - Validates race condition on single-use codes.
+
+13. **DELETE /api/servers/:id/leave - owner**
+    - Output: `403`, body `{ message: "Owner cannot leave server (delete it instead)" }`
+    - Validates owner restriction.
+
+14. **DELETE /api/servers/:id/leave - success**
+    - Output: `204`
+    - Validates membership removal.
+
+15. **PUT /api/servers/:id/members/:userId - caller not owner**
+    - Output: `403`, body `{ message: "Only owner can update roles" }`
+    - Validates role update permissions.
+
+16. **PUT /api/servers/:id/members/:userId - update role**
+    - Output: `204`
+    - Validates role update success.
 
 
 ## API Channels
@@ -256,4 +280,3 @@ Existing tests already in repo:
 10. **disconnect**
     - Output: presence updates for user servers
     - Validates online/offline transitions.
-

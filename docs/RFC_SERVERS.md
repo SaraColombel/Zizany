@@ -9,7 +9,7 @@ Created: 2026-02-05
 Related docs: docs/API_CONTRACT.md, docs/SOCKET_SPEC.md, docs/TESTS.md, docs/FRONTEND.md
 
 ## 1. Summary
-This RFC defines how servers are created, listed, updated, and deleted, including ownership rules and computed fields used by the frontend. Servers are session-authenticated and include membership-aware metadata (member counts, online counts, and role flags).
+This RFC defines how servers are created, listed, updated, and deleted, including ownership rules, public/private visibility, and computed fields used by the frontend. Servers are session-authenticated and include membership-aware metadata (member counts, online counts, and role flags).
 
 ## 2. Motivation
 We need a consistent server contract that:
@@ -25,7 +25,7 @@ We need a consistent server contract that:
 - Safe cascade deletion of server data.
 
 ## 4. Non-goals
-- Server invitations, discovery, or public/private visibility.
+- Server invitation flows (covered in RFC_MEMBERSHIPS).
 - Advanced moderation or audit logs.
 - Server settings beyond name/thumbnail/banner.
 
@@ -33,6 +33,7 @@ We need a consistent server contract that:
 
 ### 5.1 Server Model
 - Servers have an owner (`owner_id`) and basic metadata (`name`, `thumbnail`, `banner`).
+- Servers can be public or private via `isPublic` (default: `false`).
 - Creating a server also creates:
   - A default channel (current implementation uses `général`).
   - An owner membership for the creator.
@@ -50,6 +51,7 @@ All routes below require a valid session (`AuthMiddleware.handle`).
         "name": "Acme",
         "thumbnail": null,
         "banner": null,
+        "isPublic": true,
         "members": 12,
         "onlineMembers": 5,
         "isMember": true,
@@ -64,7 +66,7 @@ All routes below require a valid session (`AuthMiddleware.handle`).
   { "error": "Unauthorized" }
   ```
 - Notes:
-  - Current implementation returns **all** servers (not only those joined), but includes membership flags.
+  - Current implementation returns **public servers + servers the user has joined**.
   - `canLeave` is false when the current user is Owner.
 
 #### GET /api/servers/:id
@@ -101,7 +103,7 @@ All routes below require a valid session (`AuthMiddleware.handle`).
 #### PUT /api/servers/:id
 - Request body (partial updates allowed):
   ```json
-  { "name": "New name", "thumbnail": null, "banner": null }
+  { "name": "New name", "thumbnail": null, "banner": null, "isPublic": true }
   ```
 - Success (200):
   ```json
@@ -163,6 +165,7 @@ Relevant fields in `Servers`:
 - owner_id (FK to Users)
 - thumbnail (nullable)
 - banner (nullable)
+- is_public (boolean, default false) in DB
 - created_at
 - updated_at
 
@@ -173,11 +176,11 @@ Relevant fields in `Memberships`:
 
 ## 7. Security Considerations
 - Ownership checks protect update/delete endpoints.
-- Server list currently exposes all servers; consider scoping to joined servers if needed.
+- Server list is scoped to public servers and joined servers to avoid exposing private metadata.
 - Cascade delete removes channels, messages, and memberships.
 
 ## 8. Alternatives Considered
-- Filtering server list to joined servers only: deferred until product requirements are finalized.
+- Filtering server list to joined servers only (excluding public): not chosen because public discovery is required.
 - Soft-delete instead of hard delete: out of scope.
 
 ## 9. Migration / Rollout

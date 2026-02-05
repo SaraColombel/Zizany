@@ -40,7 +40,7 @@ export class MessageController {
         await createMessageValidator.validate({
           channel_id: parseInt(req.params.id[0]),
           user_id: req.session.user_id,
-          content: (await req.body).toString(),
+          content: req.body?.content,
         });
 
       await new PrismaMessageRepository().save({
