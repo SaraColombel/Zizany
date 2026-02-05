@@ -20,6 +20,7 @@ import * as React from "react";
 import { type Icon } from "@tabler/icons-react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 
 import {
   SidebarGroup,
@@ -386,27 +387,28 @@ export function NavSecondary({
               const isActive = index === activeIndex;
               const isCreate = isCreateItem(item);
               const isJoin = isJoinItem(item);
+              let onClick: (() => void) | undefined;
+
+              if (isCreate) {
+                onClick = () => {
+                  setApiError(null);
+                  setSuccessMsg(null);
+                  setOpenCreate(true);
+                };
+              } else if (isJoin) {
+                onClick = () => {
+                  setJoinError(null);
+                  setJoinSuccess(null);
+                  setOpenJoin(true);
+                };
+              }
 
               return (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild={!isCreate && !isJoin}
                     isActive={isActive}
-                    onClick={
-                      isCreate
-                        ? () => {
-                            setApiError(null);
-                            setSuccessMsg(null);
-                            setOpenCreate(true);
-                          }
-                        : isJoin
-                          ? () => {
-                              setJoinError(null);
-                              setJoinSuccess(null);
-                              setOpenJoin(true);
-                            }
-                          : undefined
-                    }
+                    onClick={onClick}
                     className="cursor-pointer"
                   >
                     {isCreate || isJoin ? (
@@ -484,11 +486,13 @@ export function NavSecondary({
               )}
 
               {bannerPreview && (
-                <div className="overflow-hidden rounded-md border">
-                  <img
+                <div className="relative h-24 w-full overflow-hidden rounded-md border">
+                  <Image
                     src={bannerPreview}
                     alt="Banner preview"
-                    className="h-24 w-full object-cover"
+                    fill
+                    sizes="100vw"
+                    className="object-cover"
                   />
                 </div>
               )}
@@ -509,11 +513,13 @@ export function NavSecondary({
 
               {thumbnailPreview && (
                 <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 overflow-hidden rounded-md border">
-                    <img
+                  <div className="relative h-12 w-12 overflow-hidden rounded-md border">
+                    <Image
                       src={thumbnailPreview}
                       alt="Thumbnail preview"
-                      className="h-full w-full object-cover"
+                      fill
+                      sizes="48px"
+                      className="object-cover"
                     />
                   </div>
                 </div>
