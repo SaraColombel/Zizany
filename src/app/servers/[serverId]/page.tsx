@@ -46,7 +46,9 @@ export default async function ServerPage({
   const first = json.channels?.[0];
 
   const firstId =
-    first && "props" in first ? first.props.id : (first as any)?.id;
+    first && "props" in first
+    ? first.props.id
+    : first?.id;
 
   if (firstId == null) {
     throw new Error(`No channel id found for server ${serverId}`);

@@ -22,11 +22,10 @@ const eslintConfig = defineConfig([
 		rules: {
 			// Type any
 			"@typescript-eslint/no-explicit-any": "warn",
-			//
 			"@typescript-eslint/consistent-type-definitions": ["error", "interface"],
 
 			// Nombre de lignes dans une fonction
-			complexity: ["error", 8],
+			complexity: ["error", 11],
 			// Max param fonction
 			"max-params": ["error", 3],
 

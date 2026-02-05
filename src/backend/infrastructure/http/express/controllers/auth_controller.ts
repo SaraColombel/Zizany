@@ -79,9 +79,9 @@ export class AuthController {
     }
   }
 
-  async signup(req: Request, res: Response, next: NextFunction) {
+  async signup(req: Request, res: Response) {
     const payload = await req.body;
-    const { username, email, password, confirmPassword } =
+    const { username, email, password } =
       await registerValidator.validate(payload);
 
     const userExist = (await new PrismaUserRepository().find_by_email(email))
@@ -111,7 +111,7 @@ export class AuthController {
     });
   }
 
-  async logout(req: Request, res: Response, next: NextFunction) {
+  async logout(req: Request, res: Response) {
     req.session.destroy((error) => {
       if (error) {
         return res

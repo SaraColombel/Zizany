@@ -36,7 +36,7 @@ export class MessageController {
     try {
       const { channel_id, user_id, content } =
         await createMessageValidator.validate({
-          channel_id: parseInt(req.params.id[0]),
+          channel_id: Number(req.params.id),
           user_id: req.session.user_id,
           content: req.body?.content,
         });
