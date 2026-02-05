@@ -31,7 +31,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   const {
     register,
     handleSubmit,
-    watch,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<SignupValues>({
     defaultValues: {
@@ -42,7 +42,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     },
   });
 
-  const password = watch("password");
   const [apiError, setApiError] = React.useState<string | null>(null);
 
   async function onSubmit(values: SignupValues) {
@@ -155,7 +154,8 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                 autoComplete="new-password"
                 {...register("confirmPassword", {
                   required: "Please confirm your password",
-                  validate: (v) => v === password || "Passwords do not match",
+                  validate: (v) =>
+                    v === getValues("password") || "Passwords do not match",
                 })}
               />
 
