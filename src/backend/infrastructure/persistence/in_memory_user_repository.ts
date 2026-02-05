@@ -24,8 +24,10 @@ export class InMemoryUserRepository implements UserRepository {
     return [...this.#database];
   }
 
-  async save(payload: UserProperties): Promise<void> {
-    this.#database.add(User.create(payload));
+  async save(payload: UserProperties): Promise<User> {
+    const user = User.create(payload);
+    this.#database.add(user);
+    return user;
   }
 
   async verify_password(userId: number, password: string): Promise<boolean> {
