@@ -2,6 +2,7 @@
 "use client";
 import * as React from "react";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 // ------
 
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ interface SignupValues {
 }
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
+  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -76,7 +78,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
         return;
       }
 
-      window.location.href = "/auth/login";
+      router.push("/auth/login");
     } catch {
       setApiError("Network error: backend unreachable.");
     }
