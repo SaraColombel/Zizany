@@ -114,7 +114,7 @@ describeDb("Channels API", () => {
   });
 
   // ____ TEST 3 ____
-  it("3. POST /api/channels/:id/messages sans content -> 400", async () => {
+  it("3. POST /api/channels/:id/messages sans content -> 422", async () => {
     const agent = request.agent(app);
     const loginResponse = await agent
       .post("/api/auth/login")
@@ -124,7 +124,7 @@ describeDb("Channels API", () => {
 
     const response = await agent.post(`/api/channels/${channelId}/messages`);
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(response.body.message).toBe("content is required");
   });
 
@@ -385,7 +385,8 @@ describeDb("Channels (by server) API", () => {
 
     expect(response.status).toBe(201);
     expect(response.body.ok).toBe(true);
-    const createdId = response.body.channel?.props?.id ?? response.body.channel?.id;
+    const createdId =
+      response.body.channel?.props?.id ?? response.body.channel?.id;
     if (createdId) {
       await prisma.channels.delete({ where: { id: Number(createdId) } });
     }
