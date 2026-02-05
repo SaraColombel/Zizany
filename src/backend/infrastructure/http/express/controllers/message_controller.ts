@@ -44,17 +44,17 @@ export class MessageController {
                 return res.status(401).json({ message: "Unauthorized" })
             }
 
-            const dto = await new PrismaMessageRepository().save({
-                channel_id: channelId,
-                user_id: userId,
-                content,
-            } as any)
+            const repo = new PrismaMessageRepository();
 
-            // broadcast realtime
-            const io = getSocketServer();
-            io?.to(`channel:${channelId}`).emit("message:new", dto);
+            const dto = await repo.createAndReturn({
+              channel_id: channelId,
+              user_id: Number(userId),
+              content: content.trim(),
+            } as any);
 
-            return res.status(201).json({ ok: true })
+            getSocketServer()?.to(`channel:${channelId}`).emit("message:new", dto);
+
+            return res.status(201).json({ message: dto });
         } catch (err) {
             next(err)
         }

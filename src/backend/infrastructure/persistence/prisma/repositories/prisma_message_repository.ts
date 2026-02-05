@@ -66,6 +66,17 @@ export class PrismaMessageRepository extends MessageRepository {
 
 
   async save(payload: MessageProperties): Promise<void> {
+    await prisma.messages.create({
+      data: {
+        channel_id: payload.channel_id,
+        user_id: payload.user_id,
+        content: payload.content,
+      },
+      include: { user: { select: { id: true, username: true } } },
+    });
+  }
+
+  async createAndReturn(payload: MessageProperties): Promise<MessageDTO> {
     const created = await prisma.messages.create({
       data: {
         channel_id: payload.channel_id,
