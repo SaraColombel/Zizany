@@ -77,7 +77,9 @@ export class PrismaMessageRepository extends MessageRepository {
     });
   }
 
-  async createAndReturn(payload: MessageProperties): Promise<MessageDTO> {
+  async createAndReturn(
+    payload: Omit<MessageProperties, "id" | "created_at" | "updated_at">,
+  ): Promise<MessageDTO> {
     const created = await prisma.messages.create({
       data: {
         channel_id: payload.channel_id,

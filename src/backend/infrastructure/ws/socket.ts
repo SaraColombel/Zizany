@@ -108,7 +108,7 @@ export function attachSocket(httpServer: http.Server, sessionMiddleware: Request
       });
       if (!membership) return socket.emit("error:permission", { code: "E_FORBIDDEN" });
 
-      socket.join(`server:${serverId}`);
+      await socket.join(`server:${serverId}`);
       socket.emit("server:joined", { serverId });
       await emitPresence(serverId);
     });

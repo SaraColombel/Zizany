@@ -16,10 +16,10 @@ interface ApiMessage {
   props?: ApiMessage;
 }
 
-function normalizeIncomingMessage(raw: any): UiMessage | null {
+function normalizeIncomingMessage(raw: ApiMessage | null | undefined): UiMessage | null {
   if (!raw) return null;
 
-  const base = raw.props ? raw.props : raw;
+  const base = raw.props ?? raw;
 
   const createdAt =
     typeof base.created_at === "string" ? base.created_at : new Date().toISOString();
@@ -263,7 +263,7 @@ export function ChatPane({
       setTypingUsers([]);
     });
 
-    socket.on("message:new", (msg: any) => {
+    socket.on("message:new", (msg: ApiMessage) => {
       const uiMsg = normalizeIncomingMessage(msg);
       if (!uiMsg) return;
 
@@ -291,7 +291,7 @@ export function ChatPane({
       setMessages((prev) => prev.filter((m) => m.id !== String(payload.messageId)));
     });
 
-    socket.on("message:updated", (msg:any) => {
+    socket.on("message:updated", (msg: ApiMessage) => {
       const uiMsg = normalizeIncomingMessage(msg);
       if (!uiMsg) return;
 

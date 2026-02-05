@@ -36,7 +36,15 @@ export class MessageController {
           content: req.body?.content,
         });
 
-      return res.status(201).json({ ok: true });
+      const message = await new PrismaMessageRepository().createAndReturn({
+        channel_id,
+        user_id,
+        content,
+      });
+
+      getSocketServer()?.to(`channel:${channel_id}`).emit("message:new", message);
+
+      return res.status(201).json({ ok: true, message });
     } catch (err: unknown) {
       if (err instanceof ValidationError) {
         return res.status(422).json({ err });
