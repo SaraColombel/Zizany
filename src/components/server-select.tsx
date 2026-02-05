@@ -17,8 +17,8 @@ interface Server { id: string; name: string }
 
 export function ServerSelect() {
     const router = useRouter();
-    const [servers, setServers] = React.useState<Server[]>([]);
-    const [loading, setLoading] = React.useState(true);
+    const [servers] = React.useState<Server[]>([]);
+    const [loading] = React.useState(true);
 
     return (
         <Select

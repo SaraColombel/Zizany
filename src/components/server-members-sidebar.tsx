@@ -21,6 +21,10 @@ interface Member {
   }
 }
 
+interface RawMember extends Partial<Member> {
+  props?: Partial<Member>
+}
+
 async function fetchMembers(serverId: string, apiBase: string): Promise<Member[]> {
   const res = await fetch(`${apiBase}/api/servers/${serverId}/members`, {
     method: "GET",
@@ -32,12 +36,13 @@ async function fetchMembers(serverId: string, apiBase: string): Promise<Member[]
 
   const json = await res.json()
   const normalized: Member[] = (json.members ?? [])
-    .map((raw: any) => {
-      if (!raw) return null
-      const id = Number(raw.id)
-      const user_id = Number(raw.user_id)
-      const server_id = Number(raw.server_id)
-      const role_id = Number(raw.role_id)
+    .map((raw: RawMember) => {
+      const base = raw && raw.props ? raw.props : raw
+      if (!base) return null
+      const id = Number(base.id)
+      const user_id = Number(base.user_id)
+      const server_id = Number(base.server_id)
+      const role_id = Number(base.role_id)
       if (
         !Number.isFinite(id) ||
         !Number.isFinite(user_id) ||
@@ -51,17 +56,17 @@ async function fetchMembers(serverId: string, apiBase: string): Promise<Member[]
         user_id,
         server_id,
         role_id,
-        user: raw.user
+        user: base.user
           ? {
-              id: Number(raw.user.id),
-              username: String(raw.user.username ?? "Unknown user"),
-              thumbnail: raw.user.thumbnail ?? null,
+              id: Number(base.user.id),
+              username: String(base.user.username ?? "Unknown user"),
+              thumbnail: base.user.thumbnail ?? null,
             }
           : undefined,
-        role: raw.role
+        role: base.role
           ? {
-              id: Number(raw.role.id),
-              name: String(raw.role.name ?? "Member"),
+              id: Number(base.role.id),
+              name: String(base.role.name ?? "Member"),
             }
           : undefined,
       } satisfies Member
@@ -154,10 +159,11 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
   }, [refreshMembers])
 
   React.useEffect(() => {
+    const offlineTimers = offlineTimersRef.current
     setOnlineUserIds([])
     setPresenceReady(false)
-    offlineTimersRef.current.forEach((timer) => clearTimeout(timer))
-    offlineTimersRef.current.clear()
+    offlineTimers.forEach((timer) => clearTimeout(timer))
+    offlineTimers.clear()
     const socket = io(process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:4000", {
       withCredentials: true,
       transports: ["websocket"],
@@ -180,22 +186,22 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
           const merged = new Set(prev)
 
           nextOnline.forEach((id) => {
-            const timer = offlineTimersRef.current.get(id)
+            const timer = offlineTimers.get(id)
             if (timer) {
               clearTimeout(timer)
-              offlineTimersRef.current.delete(id)
+              offlineTimers.delete(id)
             }
             merged.add(id)
           })
 
           merged.forEach((id) => {
             if (nextOnline.has(id)) return
-            if (offlineTimersRef.current.has(id)) return
+            if (offlineTimers.has(id)) return
             const timer = setTimeout(() => {
               setOnlineUserIds((current) => current.filter((x) => x !== id))
-              offlineTimersRef.current.delete(id)
+              offlineTimers.delete(id)
             }, OFFLINE_GRACE_MS)
-            offlineTimersRef.current.set(id, timer)
+            offlineTimers.set(id, timer)
           })
 
           return Array.from(merged)
@@ -232,8 +238,8 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
       socket.off("disconnect")
       socket.disconnect()
       socketRef.current = null
-      offlineTimersRef.current.forEach((timer) => clearTimeout(timer))
-      offlineTimersRef.current.clear()
+      offlineTimers.forEach((timer) => clearTimeout(timer))
+      offlineTimers.clear()
     }
   }, [serverId, refreshMembers])
 

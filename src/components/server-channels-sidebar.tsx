@@ -29,11 +29,8 @@ interface Channel {
   name: string;
 }
 
-interface RawChannel {
-  id?: number | string;
-  server_id?: number | string;
-  name?: string;
-  props?: RawChannel;
+interface RawChannel extends Partial<Channel> {
+  props?: Partial<Channel>;
 }
 
 interface ServerChannelsSidebarProps {
