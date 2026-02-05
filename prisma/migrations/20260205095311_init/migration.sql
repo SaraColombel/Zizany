@@ -18,6 +18,7 @@ CREATE TABLE "Servers" (
     "owner_id" INTEGER NOT NULL,
     "thumbnail" TEXT,
     "banner" TEXT,
+    "is_public" BOOLEAN NOT NULL DEFAULT false,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -50,7 +51,7 @@ CREATE TABLE "Memberships" (
 CREATE TABLE "Channels" (
     "id" SERIAL NOT NULL,
     "server_id" INTEGER NOT NULL,
-    "name" TEXT NOT NULL,
+    "name" VARCHAR(24) NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -69,11 +70,34 @@ CREATE TABLE "Messages" (
     CONSTRAINT "Messages_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Invitations" (
+    "id" SERIAL NOT NULL,
+    "server_id" INTEGER NOT NULL,
+    "code" TEXT NOT NULL,
+    "created_by_user_id" INTEGER NOT NULL,
+    "expires_at" TIMESTAMP(3),
+    "used_at" TIMESTAMP(3),
+    "used_by_user_id" INTEGER,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Invitations_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Users_email_key" ON "Users"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Roles_name_key" ON "Roles"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Memberships_user_id_server_id_key" ON "Memberships"("user_id", "server_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Invitations_code_key" ON "Invitations"("code");
+
+-- CreateIndex
+CREATE INDEX "Invitations_server_id_idx" ON "Invitations"("server_id");
 
 -- AddForeignKey
 ALTER TABLE "Servers" ADD CONSTRAINT "Servers_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -95,3 +119,12 @@ ALTER TABLE "Messages" ADD CONSTRAINT "Messages_channel_id_fkey" FOREIGN KEY ("c
 
 -- AddForeignKey
 ALTER TABLE "Messages" ADD CONSTRAINT "Messages_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Invitations" ADD CONSTRAINT "Invitations_server_id_fkey" FOREIGN KEY ("server_id") REFERENCES "Servers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Invitations" ADD CONSTRAINT "Invitations_created_by_user_id_fkey" FOREIGN KEY ("created_by_user_id") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Invitations" ADD CONSTRAINT "Invitations_used_by_user_id_fkey" FOREIGN KEY ("used_by_user_id") REFERENCES "Users"("id") ON DELETE SET NULL ON UPDATE CASCADE;

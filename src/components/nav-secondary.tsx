@@ -134,7 +134,7 @@ export function NavSecondary({
   /**
    * Join server state
    */
-  const [inviteLink, setInviteLink] = React.useState("");
+  const [inviteCode, setInviteCode] = React.useState("");
   const [joinError, setJoinError] = React.useState<string | null>(null);
   const [joinSuccess, setJoinSuccess] = React.useState<string | null>(null);
   const [isJoining, setIsJoining] = React.useState(false);
@@ -171,7 +171,7 @@ export function NavSecondary({
    * Reset join server UI state.
    */
   function resetJoinForm() {
-    setInviteLink("");
+    setInviteCode("");
     setJoinError(null);
     setJoinSuccess(null);
   }
@@ -226,28 +226,11 @@ export function NavSecondary({
   const canSubmit =
     !nameError && !bannerError && !thumbnailError && !isSubmitting;
 
-  /**
-   * Simple URL validation helper for invite links.
-   */
-  function isValidUrl(value: string) {
-    try {
-      // eslint-disable-next-line no-new
-      new URL(value);
-      return true;
-    } catch {
-      return false;
-    }
-  }
+  const trimmedInviteCode = inviteCode.trim();
+  const inviteCodeError =
+    trimmedInviteCode.length === 0 ? "Invitation code is required" : null;
 
-  const trimmedInvite = inviteLink.trim();
-  const inviteError =
-    trimmedInvite.length === 0
-      ? "Invitation link is required"
-      : !isValidUrl(trimmedInvite)
-        ? "Please enter a valid URL"
-        : null;
-
-  const canJoin = !inviteError && !isJoining;
+  const canJoin = !inviteCodeError && !isJoining;
 
   /**
    * Create server handler.
@@ -336,16 +319,11 @@ export function NavSecondary({
   }
 
   /**
-   * Join server handler.
+   * Join server handler (invite code).
    *
-   * Current behavior:
-   * - validates the invite link
-   * - shows a success message
-   *
-   * Backend (future):
-   * - will POST the invite link to an endpoint like:
-   *   POST /api/servers/join
-   *   { invite: string }
+   * Backend:
+   * - POST /api/invites/accept
+   *   { code: string }
    */
   async function onJoin() {
     setJoinError(null);
@@ -356,17 +334,43 @@ export function NavSecondary({
     try {
       setIsJoining(true);
 
-      /**
-       * Placeholder for future backend call.
-       * Kept async to make wiring the real fetch() trivial.
-       */
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/invites/accept`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: trimmedInviteCode }),
+          credentials: "include",
+        },
+      );
 
-      setJoinSuccess("Invitation link accepted. Backend integration pending.");
-      // We intentionally keep the sheet open so the user
-      // can still see the link and the success message.
-    } catch {
-      setJoinError("Join failed (backend not connected yet)");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(
+          data?.message ?? `Join failed (HTTP ${res.status})`,
+        );
+      }
+
+      const json = await res.json().catch(() => null);
+      const serverId = Number(
+        json?.server?.id ??
+          json?.server?.props?.id ??
+          json?.membership?.server_id,
+      );
+
+      if (!Number.isFinite(serverId)) {
+        throw new Error("Server id missing from response");
+      }
+
+      setJoinSuccess("Invitation accepted. Redirecting...");
+      await refresh();
+      setOpenJoin(false);
+      resetJoinForm();
+      router.push(`/servers/${serverId}`);
+    } catch (e) {
+      setJoinError(
+        e instanceof Error ? e.message : "Join failed (backend error)",
+      );
     } finally {
       setIsJoining(false);
     }
@@ -557,8 +561,8 @@ export function NavSecondary({
           <SheetHeader>
             <SheetTitle>Join a server</SheetTitle>
             <SheetDescription>
-              Paste the invitation link of the server you want to join. The link
-              will be sent to the backend once integration is ready.
+              Enter the invitation code you received from the server owner or
+              admin.
             </SheetDescription>
           </SheetHeader>
 
@@ -577,16 +581,16 @@ export function NavSecondary({
               </div>
             )}
 
-            {/* Invitation link input */}
+            {/* Invitation code input */}
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Invitation link</label>
+              <label className="text-sm font-medium">Invitation code</label>
               <Input
-                value={inviteLink}
-                onChange={(e) => setInviteLink(e.target.value)}
-                placeholder="https://example.com/invite/..."
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                placeholder="AB12cdEF34"
               />
-              {inviteError && (
-                <span className="text-xs text-red-500">{inviteError}</span>
+              {inviteCodeError && (
+                <span className="text-xs text-red-500">{inviteCodeError}</span>
               )}
             </div>
           </div>
