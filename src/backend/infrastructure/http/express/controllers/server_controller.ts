@@ -262,6 +262,11 @@ export class ServerController {
       }
 
       await prisma.$transaction(async (tx) => {
+        // delete invitations
+        await tx.invitations.deleteMany({
+          where: { server_id: serverId },
+        });
+
         // delete messages in all channels of the server
         await tx.messages.deleteMany({
           where: { channel: { server_id: serverId } },

@@ -21,6 +21,56 @@ interface Member {
   }
 }
 
+async function fetchMembers(serverId: string, apiBase: string): Promise<Member[]> {
+  const res = await fetch(`${apiBase}/api/servers/${serverId}/members`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+  })
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+  const json = await res.json()
+  const normalized: Member[] = (json.members ?? [])
+    .map((raw: any) => {
+      if (!raw) return null
+      const id = Number(raw.id)
+      const user_id = Number(raw.user_id)
+      const server_id = Number(raw.server_id)
+      const role_id = Number(raw.role_id)
+      if (
+        !Number.isFinite(id) ||
+        !Number.isFinite(user_id) ||
+        !Number.isFinite(server_id) ||
+        !Number.isFinite(role_id)
+      )
+        return null
+
+      return {
+        id,
+        user_id,
+        server_id,
+        role_id,
+        user: raw.user
+          ? {
+              id: Number(raw.user.id),
+              username: String(raw.user.username ?? "Unknown user"),
+              thumbnail: raw.user.thumbnail ?? null,
+            }
+          : undefined,
+        role: raw.role
+          ? {
+              id: Number(raw.role.id),
+              name: String(raw.role.name ?? "Member"),
+            }
+          : undefined,
+      } satisfies Member
+    })
+    .filter((m: Member | null): m is Member => m !== null)
+
+  return normalized
+}
+
 export function ServerMembersSidebar({ serverId }: { serverId: string }) {
   const OFFLINE_GRACE_MS = 1500
   const [open, setOpen] = React.useState(true)
@@ -30,9 +80,11 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
   const [onlineUserIds, setOnlineUserIds] = React.useState<number[]>([])
   const [presenceReady, setPresenceReady] = React.useState(false)
   const socketRef = React.useRef<Socket | null>(null)
+  const mountedRef = React.useRef(true)
   const offlineTimersRef = React.useRef<Map<number, ReturnType<typeof setTimeout>>>(
     new Map(),
   )
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 
   const onlineSet = React.useMemo(() => {
     return new Set(onlineUserIds)
@@ -57,81 +109,49 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
   }
 
   React.useEffect(() => {
-    let cancelled = false
-    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
-    async function loadMembers() {
-      try {
+  const refreshMembers = React.useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!serverId) {
+        if (!mountedRef.current) return
+        setMembers([])
+        setLoading(false)
+        setError(null)
+        return
+      }
+
+      if (!options?.silent) {
         setLoading(true)
         setError(null)
+      }
 
-        const res = await fetch(`${apiBase}/api/servers/${serverId}/members`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        })
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
-        const json = await res.json()
-        const normalized: Member[] = (json.members ?? [])
-          .map((raw: any) => {
-            if (!raw) return null
-            const id = Number(raw.id)
-            const user_id = Number(raw.user_id)
-            const server_id = Number(raw.server_id)
-            const role_id = Number(raw.role_id)
-            if (
-              !Number.isFinite(id) ||
-              !Number.isFinite(user_id) ||
-              !Number.isFinite(server_id) ||
-              !Number.isFinite(role_id)
-            )
-              return null
-
-            return {
-              id,
-              user_id,
-              server_id,
-              role_id,
-              user: raw.user
-                ? {
-                    id: Number(raw.user.id),
-                    username: String(raw.user.username ?? "Unknown user"),
-                    thumbnail: raw.user.thumbnail ?? null,
-                  }
-                : undefined,
-              role: raw.role
-                ? {
-                    id: Number(raw.role.id),
-                    name: String(raw.role.name ?? "Member"),
-                  }
-                : undefined,
-            } satisfies Member
-          })
-          .filter((m: Member | null): m is Member => m !== null)
-
-        if (!cancelled) setMembers(normalized)
+      try {
+        const normalized = await fetchMembers(serverId, apiBase)
+        if (!mountedRef.current) return
+        setMembers(normalized)
+        setError(null)
       } catch (e) {
-        if (!cancelled) {
+        if (!mountedRef.current) return
+        if (!options?.silent) {
           setError(e instanceof Error ? e.message : "Failed to load members")
         }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!options?.silent && mountedRef.current) {
+          setLoading(false)
+        }
       }
-    }
+    },
+    [serverId, apiBase],
+  )
 
-    if (serverId) {
-      loadMembers()
-    } else {
-      setMembers([])
-      setLoading(false)
-    }
-
-    return () => {
-      cancelled = true
-    }
-  }, [serverId])
+  React.useEffect(() => {
+    refreshMembers()
+  }, [refreshMembers])
 
   React.useEffect(() => {
     setOnlineUserIds([])
@@ -184,6 +204,22 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
       },
     )
 
+    socket.on(
+      "server:member_joined",
+      (payload: { serverId: number; userId: number; username?: string }) => {
+        if (Number(payload.serverId) !== Number(serverId)) return
+        refreshMembers({ silent: true })
+      },
+    )
+
+    socket.on(
+      "server:member_left",
+      (payload: { serverId: number; userId: number; username?: string }) => {
+        if (Number(payload.serverId) !== Number(serverId)) return
+        refreshMembers({ silent: true })
+      },
+    )
+
     socket.on("disconnect", () => {
       setPresenceReady(false)
     })
@@ -191,13 +227,15 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
     return () => {
       socket.off("connect")
       socket.off("presence:update")
+      socket.off("server:member_joined")
+      socket.off("server:member_left")
       socket.off("disconnect")
       socket.disconnect()
       socketRef.current = null
       offlineTimersRef.current.forEach((timer) => clearTimeout(timer))
       offlineTimersRef.current.clear()
     }
-  }, [serverId])
+  }, [serverId, refreshMembers])
 
   return (
     <aside
