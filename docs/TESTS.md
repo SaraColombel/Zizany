@@ -2,6 +2,8 @@
 
 This document describes the tests we created in this project, their expected outputs, and what each test validates. It also explains how to run the test suite.
 
+These tests validate both REST API behavior and real-time Socket.IO interactions.
+
 ## How to run
 
 - Run all tests:
