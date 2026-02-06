@@ -29,6 +29,8 @@ router.delete("/:id", serverController.delete);
 // membership actions
 router.post("/:id/join", membershipController.join);
 router.delete("/:id/leave", membershipController.leave);
+router.post("/:id/ban", membershipController.ban);
+router.post("/:id/unban", membershipController.unban);
 
 // invitations
 router.post("/:id/invites", invitationController.create);

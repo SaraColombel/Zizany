@@ -1,43 +1,29 @@
 import { NextFunction, Request, Response } from "express";
 import { ValidationError } from "@vinejs/vine";
 
-import { getSocketServer } from "../../../../infrastructure/ws/socket.js";
 import { PrismaMessageRepository } from "../../../persistence/prisma/repositories/prisma_message_repository.js";
-import { createMessageValidator } from "../../../validators/vine/message_validator.js";
-
 import { prisma } from "../../../persistence/prisma/prisma.client.js";
+import { getSocketServer } from "../../../ws/socket.js";
+import { createMessageValidator } from "../../../validators/vine/message_validator.js";
+import { assertNotBanned } from "../../../http/express/utils/ban_guard.js";
 
-const ROLE_OWNER = 1;
-const ROLE_ADMIN = 2;
-
-function requireAuth(req: Request, res: Response): number | null {
-  const uid = req.session.user_id;
-  if (!uid) {
-    res.status(401).json({ code: "E_UNAUTHORIZED_ACCESS" });
-    return null;
-  }
-  return Number(uid);
+async function resolveServerIdFromChannel(channelId: number): Promise<number | null> {
+  if (!Number.isFinite(channelId)) return null;
+  const channel = await prisma.channels.findUnique({
+    where: { id: channelId },
+    select: { server_id: true },
+  });
+  return channel?.server_id ?? null;
 }
 
-async function getMessageScope(messageId: number) {
-  // message + server_id via channel
-  return prisma.messages.findUnique({
+async function resolveServerIdFromMessage(messageId: number): Promise<number | null> {
+  if (!Number.isFinite(messageId)) return null;
+  const message = await prisma.messages.findUnique({
     where: { id: messageId },
-    select: {
-      id: true,
-      user_id: true,
-      channel_id: true,
-      channel: { select: { server_id: true } },
-    },
+    select: { channel_id: true },
   });
-}
-
-async function getUserRoleId(userId: number, serverId: number) {
-  const membership = await prisma.memberships.findFirst({
-    where: { user_id: userId, server_id: serverId },
-    select: { role_id: true },
-  });
-  return membership?.role_id ?? null;
+  if (!message) return null;
+  return resolveServerIdFromChannel(message.channel_id);
 }
 
 export class MessageController {
@@ -45,9 +31,12 @@ export class MessageController {
     try {
       // GET /api/channels/:id/messages
       const channelId = Number(req.params.id);
-      const messages = await new PrismaMessageRepository().get_by_channel(
-        channelId,
-      );
+      const userId = Number(req.session.user_id);
+      const serverId = await resolveServerIdFromChannel(channelId);
+      if (serverId) {
+        await assertNotBanned(userId, serverId);
+      }
+      const messages = await new PrismaMessageRepository().get_by_channel(channelId);
       return res.json({ messages });
     } catch (err) {
       next(err);
@@ -57,6 +46,11 @@ export class MessageController {
   async index(req: Request, res: Response, next: NextFunction) {
     try {
       const messageId = Number(req.params.id);
+      const userId = Number(req.session.user_id);
+      const serverId = await resolveServerIdFromMessage(messageId);
+      if (serverId) {
+        await assertNotBanned(userId, serverId);
+      }
       const message = await new PrismaMessageRepository().find_by_id(messageId);
       return res.json({ message });
     } catch (err) {
@@ -66,15 +60,16 @@ export class MessageController {
 
   async create(req: Request, res: Response, next: NextFunction) {
     try {
-      // POST /api/channels/:id/messages
-      // We validate "content" + session user_id, and channel_id from params.
-      const channelId = Number(req.params.id);
       const { channel_id, user_id, content } =
         await createMessageValidator.validate({
-          channel_id: channelId,
+          channel_id: Number(req.params.id),
           user_id: req.session.user_id,
           content: req.body?.content,
         });
+      const serverId = await resolveServerIdFromChannel(channel_id);
+      if (serverId) {
+        await assertNotBanned(user_id, serverId);
+      }
 
       const message = await new PrismaMessageRepository().createAndReturn({
         channel_id,
@@ -82,9 +77,7 @@ export class MessageController {
         content,
       });
 
-      getSocketServer()
-        ?.to(`channel:${channel_id}`)
-        .emit("message:new", message);
+      getSocketServer()?.to(`channel:${channel_id}`).emit("message:new", message);
 
       return res.status(201).json({ ok: true, message });
     } catch (err: unknown) {
@@ -95,39 +88,27 @@ export class MessageController {
     }
   }
 
+  /**
+   * DELETE /api/channels/:channelId/messages/:messageId
+   */
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = requireAuth(req, res);
-      if (userId === null) return;
-
       const channelId = Number(req.params.channelId);
       const messageId = Number(req.params.messageId);
 
       if (!Number.isFinite(channelId) || !Number.isFinite(messageId)) {
-        return res.status(400).json({ message: "Invalid ids" });
+        return res.status(400).json({ message: "Invalid message id" });
       }
-
-      const scope = await getMessageScope(messageId);
-      if (!scope) return res.status(404).json({ message: "Message not found" });
-
-      const serverId = scope.channel.server_id;
-      const roleId = await getUserRoleId(userId, serverId);
-      if (!roleId)
-        return res.status(403).json({ message: "Not a member of this server" });
-
-      const isAuthor = scope.user_id === userId;
-      const canModerateDelete = roleId === ROLE_OWNER || roleId === ROLE_ADMIN;
-
-      if (!isAuthor && !canModerateDelete) {
-        return res.status(403).json({ message: "Forbidden" });
+      const userId = Number(req.session.user_id);
+      const serverId = await resolveServerIdFromChannel(channelId);
+      if (serverId) {
+        await assertNotBanned(userId, serverId);
       }
 
       await new PrismaMessageRepository().delete(messageId);
 
       // realtime broadcast
-      getSocketServer()
-        ?.to(`channel:${channelId}`)
-        .emit("message:deleted", { messageId });
+      getSocketServer()?.to(`channel:${channelId}`).emit("message:deleted", { messageId });
 
       return res.status(204).send();
     } catch (err) {
@@ -135,11 +116,11 @@ export class MessageController {
     }
   }
 
+  /**
+   * PATCH /api/channels/:channelId/messages/:messageId
+   */
   async update(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = requireAuth(req, res);
-      if (userId === null) return;
-
       const channelId = Number(req.params.channelId);
       const messageId = Number(req.params.messageId);
       const { content } = req.body;
@@ -147,20 +128,20 @@ export class MessageController {
       if (!Number.isFinite(channelId) || !Number.isFinite(messageId)) {
         return res.status(400).json({ message: "Invalid message id" });
       }
+      const userId = Number(req.session.user_id);
+      const serverId = await resolveServerIdFromChannel(channelId);
+      if (serverId) {
+        await assertNotBanned(userId, serverId);
+      }
 
       if (!content || typeof content !== "string") {
         return res.status(400).json({ message: "content is required" });
       }
 
-      const updated = await new PrismaMessageRepository().updateAndReturn(
-        messageId,
-        content.trim(),
-      );
+      const updated = await new PrismaMessageRepository().updateAndReturn(messageId, content.trim());
 
       if (updated) {
-        getSocketServer()
-          ?.to(`channel:${channelId}`)
-          .emit("message:updated", updated);
+        getSocketServer()?.to(`channel:${channelId}`).emit("message:updated", updated);
       }
 
       return res.status(204).send();
@@ -169,40 +150,25 @@ export class MessageController {
     }
   }
 
+  /**
+   * DELETE /api/messages/:id  (PDF required)
+   */
   async deleteById(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = requireAuth(req, res);
-      if (userId === null) return;
-
       const messageId = Number(req.params.id);
       if (!Number.isFinite(messageId)) {
         return res.status(400).json({ message: "Invalid message id" });
       }
-
-      const scope = await getMessageScope(messageId);
-      if (!scope) return res.status(404).json({ message: "Message not found" });
-
-      const serverId = scope.channel.server_id;
-      const roleId = await getUserRoleId(userId, serverId);
-      if (!roleId)
-        return res.status(403).json({ message: "Not a member of this server" });
-
-      const isAuthor = scope.user_id === userId;
-      const canModerateDelete = roleId === ROLE_OWNER || roleId === ROLE_ADMIN;
-
-      if (!isAuthor && !canModerateDelete) {
-        return res.status(403).json({ message: "Forbidden" });
+      const userId = Number(req.session.user_id);
+      const serverId = await resolveServerIdFromMessage(messageId);
+      if (serverId) {
+        await assertNotBanned(userId, serverId);
       }
 
-      const deleted = await new PrismaMessageRepository().deleteAndReturn(
-        messageId,
-      );
-      if (!deleted)
-        return res.status(404).json({ message: "Message not found" });
+      const deleted = await new PrismaMessageRepository().deleteAndReturn(messageId);
+      if (!deleted) return res.status(404).json({ message: "Message not found" });
 
-      getSocketServer()
-        ?.to(`channel:${deleted.channel_id}`)
-        .emit("message:deleted", { messageId });
+      getSocketServer()?.to(`channel:${deleted.channel_id}`).emit("message:deleted", { messageId });
 
       return res.status(204).send();
     } catch (err) {
@@ -210,41 +176,30 @@ export class MessageController {
     }
   }
 
+  /**
+   * PATCH /api/messages/:id  (optional but used as fallback)
+   */
   async updateById(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = requireAuth(req, res);
-      if (userId === null) return;
-
       const messageId = Number(req.params.id);
       const { content } = req.body;
 
       if (!Number.isFinite(messageId)) {
         return res.status(400).json({ message: "Invalid message id" });
       }
+      const userId = Number(req.session.user_id);
+      const serverId = await resolveServerIdFromMessage(messageId);
+      if (serverId) {
+        await assertNotBanned(userId, serverId);
+      }
       if (!content || typeof content !== "string") {
         return res.status(400).json({ message: "content is required" });
       }
 
-      const scope = await getMessageScope(messageId);
-      if (!scope) return res.status(404).json({ message: "Message not found" });
+      const updated = await new PrismaMessageRepository().updateAndReturn(messageId, content.trim());
+      if (!updated) return res.status(404).json({ message: "Message not found" });
 
-      // règle: seul l'auteur peut modifier
-      if (scope.user_id !== userId) {
-        return res
-          .status(403)
-          .json({ message: "Only author can edit message" });
-      }
-
-      const updated = await new PrismaMessageRepository().updateAndReturn(
-        messageId,
-        content.trim(),
-      );
-      if (!updated)
-        return res.status(404).json({ message: "Message not found" });
-
-      getSocketServer()
-        ?.to(`channel:${updated.channel_id}`)
-        .emit("message:updated", updated);
+      getSocketServer()?.to(`channel:${updated.channel_id}`).emit("message:updated", updated);
 
       return res.status(204).send();
     } catch (err) {

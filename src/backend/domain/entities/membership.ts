@@ -6,6 +6,7 @@ export interface MembershipProperties {
   user_id: number;
   server_id: number;
   role_id: number;
+
 }
 
 export class Membership extends Entity<MembershipProperties> {

@@ -46,6 +46,10 @@ describeDb("Channels API", () => {
     });
     serverId = server.id;
 
+    await prisma.memberships.create({
+      data: { user_id: userId, server_id: serverId, role_id: 1 },
+    });
+
     const channel = await prisma.channels.create({
       data: { server_id: serverId, name: "general" },
     });

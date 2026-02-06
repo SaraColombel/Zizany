@@ -440,4 +440,76 @@ describeDb("Memberships API", () => {
     });
     expect(membership?.role_id).toBe(ROLE_ADMIN);
   });
+
+  // ____ TEST 17 ____
+  it("17. POST /api/servers/:id/ban non-owner -> 403", async () => {
+    const agent = request.agent(app);
+    const loginResponse = await agent
+      .post("/api/auth/login")
+      .send({ email: memberUser.email, password: memberUser.password });
+
+    expect(loginResponse.status).toBe(200);
+
+    const response = await agent
+      .post(`/api/servers/${ownedServerId}/ban`)
+      .send({ userId: targetId, durationMinutes: 10, reason: "spam" });
+
+    expect(response.status).toBe(403);
+    expect(response.body.message).toBe("Only owner can ban members");
+  });
+
+  // ____ TEST 18 ____
+  it("18. POST /api/servers/:id/ban owner -> 200", async () => {
+    const agent = request.agent(app);
+    const loginResponse = await agent
+      .post("/api/auth/login")
+      .send({ email: ownerUser.email, password: ownerUser.password });
+
+    expect(loginResponse.status).toBe(200);
+
+    const response = await agent
+      .post(`/api/servers/${ownedServerId}/ban`)
+      .send({ userId: memberId, durationMinutes: 10, reason: "spam" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.membership?.banned_until).toBeTruthy();
+    expect(response.body.membership?.ban_reason).toBe("spam");
+  });
+
+  // ____ TEST 19 ____
+  it("19. GET /api/servers/:id banned member -> 403", async () => {
+    const agent = request.agent(app);
+    const loginResponse = await agent
+      .post("/api/auth/login")
+      .send({ email: memberUser.email, password: memberUser.password });
+
+    expect(loginResponse.status).toBe(200);
+
+    const response = await agent.get(`/api/servers/${ownedServerId}`);
+
+    expect(response.status).toBe(403);
+    expect(typeof response.body.bannedUntil).toBe("string");
+    expect(response.body.reason).toBe("spam");
+  });
+
+  // ____ TEST 20 ____
+  it("20. POST /api/servers/:id/unban owner -> 200", async () => {
+    const agent = request.agent(app);
+    const loginResponse = await agent
+      .post("/api/auth/login")
+      .send({ email: ownerUser.email, password: ownerUser.password });
+
+    expect(loginResponse.status).toBe(200);
+
+    const response = await agent
+      .post(`/api/servers/${ownedServerId}/unban`)
+      .send({ userId: memberId });
+
+    expect(response.status).toBe(200);
+    expect(response.body.membership?.banned_until).toBeNull();
+    expect(response.body.membership?.ban_reason).toBeNull();
+
+    const access = await agent.get(`/api/servers/${ownedServerId}`);
+    expect(access.status).toBe(200);
+  });
 });
