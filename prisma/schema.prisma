@@ -52,17 +52,22 @@ model Roles {
 }
 
 model Memberships {
-    id         Int      @id @default(autoincrement())
-    user_id    Int
-    server_id  Int
-    role_id    Int
-    created_at DateTime @default(now())
-    updated_at DateTime @default(now()) @updatedAt
-    user       Users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-    server     Servers  @relation(fields: [server_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-    role       Roles    @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    id           Int      @id @default(autoincrement())
+    user_id      Int
+    server_id    Int
+    role_id      Int
+    banned_until DateTime?
+    ban_reason   String?
+    banned_by    Int?
+    created_at   DateTime @default(now())
+    updated_at   DateTime @default(now()) @updatedAt
+    user         Users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    server       Servers  @relation(fields: [server_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    role         Roles    @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
     @@unique([user_id, server_id])
+    @@index([server_id])
+    @@index([banned_until])
 }
 
 model Channels {

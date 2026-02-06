@@ -4,6 +4,7 @@ import { PrismaMembershipRepository } from "@/backend/infrastructure/persistence
 import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
 import { getOnlineUserIds } from "@/backend/infrastructure/ws/presence_store";
 import { PrismaServerMapper } from "@/backend/infrastructure/persistence/prisma/mappers/prisma_server_mapper";
+import { assertNotBanned } from "@/backend/infrastructure/http/express/utils/ban_guard";
 import type { ServerProperties } from "@/backend/domain/entities/server";
 
 const ROLE_OWNER = 1;
@@ -84,8 +85,8 @@ export class ServerController {
       const servers = await prisma.servers.findMany({
         where: joinedServerIds.length
           ? {
-              OR: [{ is_public: true }, { id: { in: joinedServerIds } }],
-            }
+            OR: [{ is_public: true }, { id: { in: joinedServerIds } }],
+          }
           : { is_public: true },
         orderBy: { id: "asc" },
       });
@@ -96,10 +97,10 @@ export class ServerController {
         serverIds.length === 0
           ? []
           : await prisma.memberships.groupBy({
-              by: ["server_id"],
-              where: { server_id: { in: serverIds } },
-              _count: { _all: true },
-            });
+            by: ["server_id"],
+            where: { server_id: { in: serverIds } },
+            _count: { _all: true },
+          });
       const membersByServer = new Map(
         membershipCounts.map((row) => [row.server_id, row._count._all]),
       );
@@ -109,13 +110,13 @@ export class ServerController {
         serverIds.length === 0 || onlineUserIds.length === 0
           ? []
           : await prisma.memberships.groupBy({
-              by: ["server_id"],
-              where: {
-                server_id: { in: serverIds },
-                user_id: { in: onlineUserIds },
-              },
-              _count: { _all: true },
-            });
+            by: ["server_id"],
+            where: {
+              server_id: { in: serverIds },
+              user_id: { in: onlineUserIds },
+            },
+            _count: { _all: true },
+          });
       const onlineByServer = new Map(
         onlineCounts.map((row) => [row.server_id, row._count._all]),
       );
@@ -158,6 +159,7 @@ export class ServerController {
     try {
       const id = Number(req.params.id);
       const userId = Number(req.session.user_id);
+      await assertNotBanned(userId, id);
       const server = await new PrismaServerRepository().find_by_id(id);
       const membership =
         await new PrismaMembershipRepository().get_by_server_id(id);
@@ -210,7 +212,7 @@ export class ServerController {
         await tx.channels.create({
           data: {
             server_id: created.id,
-            name: "général",
+            name: "general",
           },
         });
 
@@ -254,7 +256,7 @@ export class ServerController {
           userId,
           serverId,
         );
-      const callerRoleId = getCallerRoleId(callerMembership);
+      const callerRoleId = getCallerRoleId(callerMembership ?? null);
       if (
         !ensureOwner({
           ownerId: server.props.owner_id,

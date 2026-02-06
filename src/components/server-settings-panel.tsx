@@ -22,6 +22,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 const ROLE_LABELS: Record<number, string> = {
   1: "Owner",
@@ -40,6 +45,9 @@ interface Member {
   user_id: number
   server_id: number
   role_id: number
+  banned_until?: string | null
+  ban_reason?: string | null
+  banned_by?: number | null
   user?: {
     id: number
     username: string
@@ -63,6 +71,50 @@ function getInitials(name: string) {
     .map((part) => part[0]?.toUpperCase())
     .join("")
 }
+
+function formatDateTime(value?: string | null) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleString()
+}
+
+function getStringProp(
+  record: Record<string, unknown>,
+  ...keys: string[]
+) {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === "string") return value
+  }
+  return null
+}
+
+function getNumberProp(
+  record: Record<string, unknown>,
+  ...keys: string[]
+) {
+  for (const key of keys) {
+    const value = record[key]
+    const numeric = Number(value)
+    if (Number.isFinite(numeric)) return numeric
+  }
+  return null
+}
+
+function isMemberBanned(member: Member) {
+  if (!member.banned_until) return false
+  const date = new Date(member.banned_until)
+  return !Number.isNaN(date.getTime()) && date > new Date()
+}
+
+const BAN_PRESETS = [
+  { value: "10m", label: "10 minutes", minutes: 10 },
+  { value: "1h", label: "1 hour", minutes: 60 },
+  { value: "24h", label: "24 hours", minutes: 60 * 24 },
+  { value: "7d", label: "7 days", minutes: 60 * 24 * 7 },
+  { value: "custom", label: "Custom", minutes: null as number | null },
+]
 
 export function ServerSettingsPanel({
   serverId,
@@ -108,6 +160,13 @@ export function ServerSettingsPanel({
   const [deleteConfirmError, setDeleteConfirmError] = React.useState<string | null>(
     null,
   )
+  const [banTarget, setBanTarget] = React.useState<Member | null>(null)
+  const [banReason, setBanReason] = React.useState("")
+  const [banDurationPreset, setBanDurationPreset] = React.useState("1h")
+  const [banCustomMinutes, setBanCustomMinutes] = React.useState("")
+  const [banError, setBanError] = React.useState<string | null>(null)
+  const [banSubmitting, setBanSubmitting] = React.useState(false)
+  const [banSavingIds, setBanSavingIds] = React.useState<Set<number>>(new Set())
 
   const apiBase =
     process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4000"
@@ -120,6 +179,8 @@ export function ServerSettingsPanel({
     !isSavingChanges
   const displayServerName =
     savedName.trim() || serverName?.trim() || "this server"
+  const activeMembers = members.filter((member) => !isMemberBanned(member))
+  const bannedMembers = members.filter((member) => isMemberBanned(member))
 
   function getUpdatedName(
     payload: Record<string, unknown> | null,
@@ -180,12 +241,31 @@ export function ServerSettingsPanel({
             !Number.isFinite(role_id)
           )
             return null
+          const baseRecord = base as Record<string, unknown>
+          const banned_until = getStringProp(
+            baseRecord,
+            "banned_until",
+            "bannedUntil",
+          )
+          const ban_reason = getStringProp(
+            baseRecord,
+            "ban_reason",
+            "banReason",
+          )
+          const banned_by = getNumberProp(
+            baseRecord,
+            "banned_by",
+            "bannedBy",
+          )
 
           return {
             id,
             user_id,
             server_id,
             role_id,
+            banned_until,
+            ban_reason,
+            banned_by,
             user: base.user
               ? {
                   id: Number(base.user.id),
@@ -276,6 +356,131 @@ export function ServerSettingsPanel({
       await updateRole(member, nextRoleId)
     },
     [serverId, updateRole],
+  )
+
+  const openBanModal = React.useCallback((member: Member) => {
+    setBanTarget(member)
+    setBanReason("")
+    setBanDurationPreset("1h")
+    setBanCustomMinutes("")
+    setBanError(null)
+  }, [])
+
+  const submitBan = React.useCallback(async () => {
+    if (!serverId || !banTarget || banSubmitting) return
+    const targetUserId = banTarget.user_id
+
+    const selected = BAN_PRESETS.find(
+      (preset) => preset.value === banDurationPreset,
+    )
+    let durationMinutes: number | null = selected?.minutes ?? null
+
+    if (banDurationPreset === "custom") {
+      const custom = Number(banCustomMinutes)
+      if (!Number.isFinite(custom) || custom <= 0) {
+        setBanError("Custom duration must be a positive number of minutes.")
+        return
+      }
+      durationMinutes = custom
+    }
+
+    if (!durationMinutes || durationMinutes <= 0) {
+      setBanError("Please select a valid duration.")
+      return
+    }
+
+    setBanSubmitting(true)
+    setBanError(null)
+    setError(null)
+    setBanSavingIds((prev) => {
+      const next = new Set(prev)
+      next.add(targetUserId)
+      return next
+    })
+
+    try {
+      const res = await fetch(`${apiBase}/api/servers/${serverId}/ban`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          userId: targetUserId,
+          durationMinutes,
+          reason: banReason.trim() || undefined,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.message ?? `HTTP ${res.status}`)
+      }
+
+      await loadMembers({ silent: true })
+      setBanTarget(null)
+      setBanReason("")
+      setBanDurationPreset("1h")
+      setBanCustomMinutes("")
+    } catch (e) {
+      setBanError(
+        e instanceof Error ? e.message : "Failed to ban member",
+      )
+    } finally {
+      setBanSubmitting(false)
+      setBanSavingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(targetUserId)
+        return next
+      })
+    }
+  }, [
+    apiBase,
+    banCustomMinutes,
+    banDurationPreset,
+    banReason,
+    banSubmitting,
+    banTarget,
+    loadMembers,
+    serverId,
+  ])
+
+  const handleUnban = React.useCallback(
+    async (member: Member) => {
+      if (!serverId) return
+
+      setError(null)
+      setBanSavingIds((prev) => {
+        const next = new Set(prev)
+        next.add(member.user_id)
+        return next
+      })
+
+      try {
+        const res = await fetch(`${apiBase}/api/servers/${serverId}/unban`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ userId: member.user_id }),
+        })
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => null)
+          throw new Error(data?.message ?? `HTTP ${res.status}`)
+        }
+
+        await loadMembers({ silent: true })
+      } catch (e) {
+        setError(
+          e instanceof Error ? e.message : "Failed to unban member",
+        )
+      } finally {
+        setBanSavingIds((prev) => {
+          const next = new Set(prev)
+          next.delete(member.user_id)
+          return next
+        })
+      }
+    },
+    [apiBase, loadMembers, serverId],
   )
 
   const confirmOwnerTransfer = React.useCallback(async () => {
@@ -521,20 +726,23 @@ export function ServerSettingsPanel({
           </div>
         )}
 
-        {!loading && !error && members.length > 0 && (
+        {!loading && !error && activeMembers.length > 0 && (
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Member</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {members.map((member) => {
+                {activeMembers.map((member) => {
                   const username = member.user?.username ?? "Unknown user"
                   const isOwner = member.role_id === 1
-                  const isSaving = savingIds.has(member.user_id)
+                  const isSaving =
+                    savingIds.has(member.user_id) ||
+                    banSavingIds.has(member.user_id)
 
                   return (
                     <TableRow key={member.id}>
@@ -587,11 +795,101 @@ export function ServerSettingsPanel({
                           </Select>
                         )}
                       </TableCell>
+                      <TableCell className="text-right">
+                        {!isOwner && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openBanModal(member)}
+                            disabled={isSaving}
+                          >
+                            Ban
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   )
                 })}
               </TableBody>
             </Table>
+          </div>
+        )}
+
+        {!loading && !error && bannedMembers.length > 0 && (
+          <div className="mt-6">
+            <div className="flex items-center justify-between pb-3">
+              <div>
+                <h3 className="text-sm font-semibold">Banned members</h3>
+                <p className="text-xs text-muted-foreground">
+                  {bannedMembers.length} banned member
+                  {bannedMembers.length === 1 ? "" : "s"}
+                </p>
+              </div>
+            </div>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Member</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bannedMembers.map((member) => {
+                    const username = member.user?.username ?? "Unknown user"
+                    const banEndsAt =
+                      formatDateTime(member.banned_until) ?? "Unknown"
+                    const reason = member.ban_reason?.trim() || "—"
+                    const isProcessing = banSavingIds.has(member.user_id)
+
+                    return (
+                      <TableRow key={member.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar size="sm">
+                              <AvatarImage
+                                src={member.user?.thumbnail ?? undefined}
+                                alt={username}
+                              />
+                              <AvatarFallback>
+                                {getInitials(username) || "?"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="space-y-0.5">
+                              <div className="text-sm font-medium">
+                                {username}
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="destructive">Banned</Badge>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs space-y-2 text-xs">
+                              <div>Ban ends: {banEndsAt}</div>
+                              <div>Reason: {reason}</div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="mt-1 w-full"
+                                onClick={() => handleUnban(member)}
+                                disabled={isProcessing}
+                              >
+                                {isProcessing ? "Unbanning..." : "Unban"}
+                              </Button>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
 
@@ -763,6 +1061,100 @@ export function ServerSettingsPanel({
                 disabled={isDeleting}
               >
                 Delete server
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {banTarget && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-lg border bg-background p-6 shadow-lg">
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold">Ban member</h3>
+              <p className="text-sm text-muted-foreground">
+                You are about to ban{" "}
+                <span className="font-medium text-foreground">
+                  {banTarget.user?.username ?? "this member"}
+                </span>{" "}
+                from {displayServerName}.
+              </p>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <label className="text-sm font-medium">Reason (optional)</label>
+              <Input
+                value={banReason}
+                onChange={(event) => {
+                  setBanReason(event.target.value)
+                  if (banError) setBanError(null)
+                }}
+                placeholder="Provide a reason (optional)"
+              />
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <label className="text-sm font-medium">Duration</label>
+              <Select
+                value={banDurationPreset}
+                onValueChange={(value) => {
+                  setBanDurationPreset(value)
+                  if (banError) setBanError(null)
+                }}
+              >
+                <SelectTrigger size="sm" className="min-w-40">
+                  <SelectValue placeholder="Select duration" />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {BAN_PRESETS.map((preset) => (
+                    <SelectItem key={preset.value} value={preset.value}>
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {banDurationPreset === "custom" && (
+                <Input
+                  type="number"
+                  min="1"
+                  value={banCustomMinutes}
+                  onChange={(event) => {
+                    setBanCustomMinutes(event.target.value)
+                    if (banError) setBanError(null)
+                  }}
+                  placeholder="Custom duration in minutes"
+                />
+              )}
+              <p className="text-xs text-muted-foreground">
+                Choose a preset or enter a custom duration.
+              </p>
+            </div>
+
+            {banError && (
+              <div className="mt-3 text-xs text-destructive">{banError}</div>
+            )}
+
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setBanTarget(null)
+                  setBanReason("")
+                  setBanDurationPreset("1h")
+                  setBanCustomMinutes("")
+                  setBanError(null)
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={submitBan}
+                disabled={banSubmitting}
+              >
+                {banSubmitting ? "Banning..." : "Ban member"}
               </Button>
             </div>
           </div>

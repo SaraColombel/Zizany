@@ -74,7 +74,7 @@ Existing tests already in repo:
 
 5. **POST /api/servers - success**
    - Output: `201`, body `{ message, server_id }`
-   - Validates server creation + auto channel "général" + owner membership.
+   - Validates server creation + auto channel "general" + owner membership.
 
 6. **PUT /api/servers/:id - invalid id**
    - Output: `400`, body `{ message: "Invalid server id" }`

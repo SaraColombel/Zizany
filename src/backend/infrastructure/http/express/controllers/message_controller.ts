@@ -2,14 +2,40 @@ import { NextFunction, Request, Response } from "express";
 import { ValidationError } from "@vinejs/vine";
 
 import { PrismaMessageRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_message_repository";
+import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
 import { getSocketServer } from "@/backend/infrastructure/ws/socket";
 import { createMessageValidator } from "@/backend/infrastructure/validators/vine/message_validator";
+import { assertNotBanned } from "@/backend/infrastructure/http/express/utils/ban_guard";
+
+async function resolveServerIdFromChannel(channelId: number): Promise<number | null> {
+  if (!Number.isFinite(channelId)) return null;
+  const channel = await prisma.channels.findUnique({
+    where: { id: channelId },
+    select: { server_id: true },
+  });
+  return channel?.server_id ?? null;
+}
+
+async function resolveServerIdFromMessage(messageId: number): Promise<number | null> {
+  if (!Number.isFinite(messageId)) return null;
+  const message = await prisma.messages.findUnique({
+    where: { id: messageId },
+    select: { channel_id: true },
+  });
+  if (!message) return null;
+  return resolveServerIdFromChannel(message.channel_id);
+}
 
 export class MessageController {
   async all(req: Request, res: Response, next: NextFunction) {
     try {
       // GET /api/channels/:id/messages
       const channelId = Number(req.params.id);
+      const userId = Number(req.session.user_id);
+      const serverId = await resolveServerIdFromChannel(channelId);
+      if (serverId) {
+        await assertNotBanned(userId, serverId);
+      }
       const messages = await new PrismaMessageRepository().get_by_channel(channelId);
       return res.json({ messages });
     } catch (err) {
@@ -20,6 +46,11 @@ export class MessageController {
   async index(req: Request, res: Response, next: NextFunction) {
     try {
       const messageId = Number(req.params.id);
+      const userId = Number(req.session.user_id);
+      const serverId = await resolveServerIdFromMessage(messageId);
+      if (serverId) {
+        await assertNotBanned(userId, serverId);
+      }
       const message = await new PrismaMessageRepository().find_by_id(messageId);
       return res.json({ message });
     } catch (err) {
@@ -35,6 +66,10 @@ export class MessageController {
           user_id: req.session.user_id,
           content: req.body?.content,
         });
+      const serverId = await resolveServerIdFromChannel(channel_id);
+      if (serverId) {
+        await assertNotBanned(user_id, serverId);
+      }
 
       const message = await new PrismaMessageRepository().createAndReturn({
         channel_id,
@@ -64,6 +99,11 @@ export class MessageController {
       if (!Number.isFinite(channelId) || !Number.isFinite(messageId)) {
         return res.status(400).json({ message: "Invalid message id" });
       }
+      const userId = Number(req.session.user_id);
+      const serverId = await resolveServerIdFromChannel(channelId);
+      if (serverId) {
+        await assertNotBanned(userId, serverId);
+      }
 
       await new PrismaMessageRepository().delete(messageId);
 
@@ -87,6 +127,11 @@ export class MessageController {
 
       if (!Number.isFinite(channelId) || !Number.isFinite(messageId)) {
         return res.status(400).json({ message: "Invalid message id" });
+      }
+      const userId = Number(req.session.user_id);
+      const serverId = await resolveServerIdFromChannel(channelId);
+      if (serverId) {
+        await assertNotBanned(userId, serverId);
       }
 
       if (!content || typeof content !== "string") {
@@ -114,6 +159,11 @@ export class MessageController {
       if (!Number.isFinite(messageId)) {
         return res.status(400).json({ message: "Invalid message id" });
       }
+      const userId = Number(req.session.user_id);
+      const serverId = await resolveServerIdFromMessage(messageId);
+      if (serverId) {
+        await assertNotBanned(userId, serverId);
+      }
 
       const deleted = await new PrismaMessageRepository().deleteAndReturn(messageId);
       if (!deleted) return res.status(404).json({ message: "Message not found" });
@@ -136,6 +186,11 @@ export class MessageController {
 
       if (!Number.isFinite(messageId)) {
         return res.status(400).json({ message: "Invalid message id" });
+      }
+      const userId = Number(req.session.user_id);
+      const serverId = await resolveServerIdFromMessage(messageId);
+      if (serverId) {
+        await assertNotBanned(userId, serverId);
       }
       if (!content || typeof content !== "string") {
         return res.status(400).json({ message: "content is required" });

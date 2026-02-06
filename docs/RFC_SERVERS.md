@@ -35,7 +35,7 @@ We need a consistent server contract that:
 - Servers have an owner (`owner_id`) and basic metadata (`name`, `thumbnail`, `banner`).
 - Servers can be public or private via `isPublic` (default: `false`).
 - Creating a server also creates:
-  - A default channel (current implementation uses `général`).
+  - A default channel (current implementation uses `general`).
   - An owner membership for the creator.
 
 ### 5.2 Endpoints (HTTP)
