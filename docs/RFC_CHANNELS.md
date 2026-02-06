@@ -137,7 +137,7 @@ All routes below require a valid session (`AuthMiddleware.handle`).
 - Success (204): no body
 - Failure (400):
   ```json
-  { "message": "Invalid message id" }
+  { "message": "Invalid ids" }
   ```
 - Failure (400):
   ```json
@@ -148,7 +148,7 @@ All routes below require a valid session (`AuthMiddleware.handle`).
 - Success (204): no body
 - Failure (400):
   ```json
-  { "message": "Invalid message id" }
+  { "message": "Invalid ids" }
   ```
 
 ### 5.3 Validation Rules

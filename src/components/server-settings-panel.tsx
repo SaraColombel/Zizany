@@ -55,7 +55,7 @@ interface RawMember extends Partial<Member> {
   props?: Partial<Member>;
 }
 
-type ServerPayload = {
+interface ServerPayload {
   server?: {
     name?: string;
     props?: {

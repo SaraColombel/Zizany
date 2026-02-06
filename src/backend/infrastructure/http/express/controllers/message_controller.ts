@@ -145,7 +145,7 @@ export class MessageController {
       const { content } = req.body;
 
       if (!Number.isFinite(channelId) || !Number.isFinite(messageId)) {
-        return res.status(400).json({ message: "Invalid message id" });
+        return res.status(400).json({ message: "Invalid ids" });
       }
 
       if (!content || typeof content !== "string") {
@@ -176,7 +176,7 @@ export class MessageController {
 
       const messageId = Number(req.params.id);
       if (!Number.isFinite(messageId)) {
-        return res.status(400).json({ message: "Invalid message id" });
+        return res.status(400).json({ message: "Invalid ids" });
       }
 
       const scope = await getMessageScope(messageId);
@@ -219,7 +219,7 @@ export class MessageController {
       const { content } = req.body;
 
       if (!Number.isFinite(messageId)) {
-        return res.status(400).json({ message: "Invalid message id" });
+        return res.status(400).json({ message: "Invalid ids" });
       }
       if (!content || typeof content !== "string") {
         return res.status(400).json({ message: "content is required" });

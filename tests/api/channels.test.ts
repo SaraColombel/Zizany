@@ -46,6 +46,10 @@ describeDb("Channels API", () => {
     });
     serverId = server.id;
 
+    await prisma.memberships.create({
+      data: { user_id: userId, server_id: serverId, role_id: 1 },
+    });
+
     const channel = await prisma.channels.create({
       data: { server_id: serverId, name: "general" },
     });
@@ -169,7 +173,7 @@ describeDb("Channels API", () => {
       .send({ content: "Update" });
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe("Invalid message id");
+    expect(response.body.message).toBe("Invalid ids");
   });
 
   // ____ TEST 7 ____
@@ -224,7 +228,7 @@ describeDb("Channels API", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe("Invalid message id");
+    expect(response.body.message).toBe("Invalid ids");
   });
 
   // ____ TEST 10 ____

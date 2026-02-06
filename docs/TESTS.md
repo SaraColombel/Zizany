@@ -189,7 +189,7 @@ Existing tests already in repo:
    - Validates message creation.
 
 6. **PATCH /api/channels/:channelId/messages/:messageId - invalid id**
-   - Output: `400`, body `{ message: "Invalid message id" }`
+   - Output: `400`, body `{ message: "Invalid ids" }`
    - Validates id parsing.
 
 7. **PATCH /api/channels/:channelId/messages/:messageId - missing content**
@@ -201,7 +201,7 @@ Existing tests already in repo:
    - Validates update path.
 
 9. **DELETE /api/channels/:channelId/messages/:messageId - invalid id**
-   - Output: `400`, body `{ message: "Invalid message id" }`
+   - Output: `400`, body `{ message: "Invalid ids" }`
    - Validates id parsing.
 
 10. **DELETE /api/channels/:channelId/messages/:messageId - success**
