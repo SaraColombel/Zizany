@@ -34,3 +34,4 @@ services:
     ports:
       - "3000:3000"
       - "4000:4000"
+    command: ["npx prisma migrate deploy && npx prisma db seed && npm run start"]
