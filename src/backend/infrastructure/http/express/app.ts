@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import apiRouter from "./routes/index.js";
 import session from "express-session";
+import { httpErrorMiddleware } from "./middlewares/http_error_middleware.js";
 
 /**Export utilisé côté Socket.IO */
 export const sessionMiddleware = session({
@@ -29,6 +30,7 @@ export function createApp() {
   app.use(sessionMiddleware);
 
   app.use("/api", apiRouter);
+  app.use(httpErrorMiddleware);
 
   return app;
 }

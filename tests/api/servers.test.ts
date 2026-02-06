@@ -197,7 +197,7 @@ describeDb("Servers API", () => {
 
     const createdId = Number(response.body.server_id);
     const channel = await prisma.channels.findFirst({
-      where: { server_id: createdId, name: "général" },
+      where: { server_id: createdId, name: "general" },
     });
     const membership = await prisma.memberships.findFirst({
       where: { server_id: createdId, user_id: ownerId, role_id: ROLE_OWNER },

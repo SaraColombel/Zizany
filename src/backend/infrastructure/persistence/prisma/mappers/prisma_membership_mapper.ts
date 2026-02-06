@@ -8,6 +8,7 @@ export class PrismaMembershipMapper {
       role_id: prismaMembership.role_id,
       server_id: prismaMembership.server_id,
       user_id: prismaMembership.user_id,
+
     });
   }
 }

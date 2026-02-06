@@ -34,4 +34,3 @@ services:
     ports:
       - "3000:3000"
       - "4000:4000"
-    # command: sh -c "npx prisma migrate deploy && npm run start"

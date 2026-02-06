@@ -4,6 +4,8 @@ import { prisma } from "../../../persistence/prisma/prisma.client.js";
 import { PrismaMembershipRepository } from "../../../persistence/prisma/repositories/prisma_membership_repository.js";
 import { PrismaServerRepository } from "../../../persistence/prisma/repositories/prisma_server_repository.js";
 import { getSocketServer } from "../../../ws/socket.js";
+import { assertNotBanned } from "../../../http/express/utils/ban_guard.js";
+
 
 const ROLE_OWNER = 1;
 const ROLE_ADMIN = 2;
@@ -193,6 +195,99 @@ function emitMemberJoined(serverId: number, userId: number, username: string) {
   }
 }
 
+function parseBanIds(req: Request) {
+  const serverId = Number(req.params.id);
+  const targetUserId = Number(req.body?.userId);
+  const callerUserId = Number(req.session.user_id);
+
+  if (!Number.isFinite(serverId) || !Number.isFinite(targetUserId)) {
+    throw httpError(400, "Invalid serverId or userId");
+  }
+
+  return { serverId, targetUserId, callerUserId };
+}
+
+async function ensureOwnerCanBan(serverId: number, callerUserId: number) {
+  const server = await prisma.servers.findUnique({
+    where: { id: serverId },
+    select: { id: true, owner_id: true },
+  });
+  if (!server) {
+    throw httpError(404, "Server not found");
+  }
+
+  const callerMembership = await prisma.memberships.findFirst({
+    where: { user_id: callerUserId, server_id: serverId },
+    select: { role_id: true },
+  });
+  const isOwner =
+    server.owner_id === callerUserId ||
+    callerMembership?.role_id === ROLE_OWNER;
+  if (!isOwner) {
+    throw httpError(403, "Only owner can ban members");
+  }
+}
+
+async function ensureUserExists(userId: number) {
+  const targetUser = await prisma.users.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+  if (!targetUser) {
+    throw httpError(404, "User not found");
+  }
+}
+
+async function getMembershipOrThrow(serverId: number, userId: number) {
+  const membership = await prisma.memberships.findFirst({
+    where: { user_id: userId, server_id: serverId },
+  });
+  if (!membership) {
+    throw httpError(404, "Membership not found");
+  }
+  return membership;
+}
+
+function parseBanReason(reasonRaw: unknown) {
+  return typeof reasonRaw === "string" && reasonRaw.trim().length > 0
+    ? reasonRaw.trim()
+    : null;
+}
+
+function parseDateInput(value: unknown) {
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    return new Date(value);
+  }
+  return null;
+}
+
+function resolveBannedUntil(durationRaw: unknown, bannedUntilRaw: unknown) {
+  if (typeof bannedUntilRaw !== "undefined") {
+    const parsed = parseDateInput(bannedUntilRaw);
+    if (!parsed) {
+      throw httpError(400, "Invalid bannedUntil");
+    }
+    if (Number.isNaN(parsed.getTime())) {
+      throw httpError(400, "Invalid bannedUntil");
+    }
+    if (parsed <= new Date()) {
+      throw httpError(400, "bannedUntil must be in the future");
+    }
+    return parsed;
+  }
+
+  if (typeof durationRaw !== "undefined") {
+    const durationMinutes = Number(durationRaw);
+    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+      throw httpError(400, "durationMinutes must be positive");
+    }
+    return new Date(Date.now() + durationMinutes * 60 * 1000);
+  }
+
+  throw httpError(400, "durationMinutes or bannedUntil is required");
+}
+
 export class MembershipController {
   async all(req: Request, res: Response, next: NextFunction) {
     try {
@@ -200,6 +295,8 @@ export class MembershipController {
       if (!Number.isFinite(id)) {
         return res.status(400).json({ error: "Invalid serverId" });
       }
+      const userId = Number(req.session.user_id);
+      await assertNotBanned(userId, id);
 
       const members = await prisma.memberships.findMany({
         where: {
@@ -231,6 +328,9 @@ export class MembershipController {
           user_id: member.user_id,
           server_id: member.server_id,
           role_id: member.role_id,
+          banned_until: member.banned_until,
+          ban_reason: member.ban_reason,
+          banned_by: member.banned_by,
           user: member.user,
           role: member.role,
         })),
@@ -242,136 +342,18 @@ export class MembershipController {
 
   async join(req: Request, res: Response, next: NextFunction) {
     try {
-      const serverId = Number(req.params.id);
-      const userId = Number(req.session.user_id);
+      const { serverId, userId } = parseJoinIds(req);
+      const server = await getServerOrThrow(serverId);
 
-      if (!Number.isFinite(serverId)) {
-        return res.status(400).json({ message: "Invalid server id" });
-      }
+      await ensureNotMember(userId, serverId);
 
-      if (!Number.isFinite(userId)) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
+      const codeInfo = parseJoinCode(req);
+      ensureJoinAccess(server, codeInfo);
 
-      const server = await new PrismaServerRepository().find_by_id(serverId);
-      if (!server) {
-        return res.status(404).json({ message: "Server not found" });
-      }
+      const membership = await createMembership(serverId, userId, codeInfo);
+      const username = await resolveUsername(req, userId);
 
-      const existing =
-        await new PrismaMembershipRepository().find_by_user_and_server(
-          userId,
-          serverId,
-        );
-      if (existing) {
-        return res.status(409).json({ message: "Already a member" });
-      }
-
-      const rawCode = req.body?.code;
-      const hasCodeField = typeof rawCode !== "undefined";
-      const code = typeof rawCode === "string" ? rawCode.trim() : "";
-
-      if (hasCodeField && typeof rawCode !== "string") {
-        return res.status(400).json({ message: "code must be a string" });
-      }
-
-      if (hasCodeField && code.length === 0) {
-        return res.status(400).json({ message: "code is required" });
-      }
-
-      if (!hasCodeField && !server.props.isPublic) {
-        return res
-          .status(403)
-          .json({ message: "Server is private. Invitation code required." });
-      }
-
-      if (!hasCodeField && !server.props.isPublic) {
-        return res
-          .status(403)
-          .json({ message: "Server is private. Invitation code required." });
-      }
-
-      let membership;
-      if (hasCodeField) {
-        const invitation = await prisma.invitations.findFirst({
-          where: { server_id: serverId, code },
-        });
-
-        if (!invitation) {
-          return res.status(404).json({ message: "Invitation not found" });
-        }
-
-        if (invitation.used_at) {
-          return res.status(409).json({ message: "Invitation already used" });
-        }
-
-        if (invitation.expires_at && invitation.expires_at < new Date()) {
-          return res.status(404).json({ message: "Invitation expired" });
-        }
-
-        membership = await prisma.$transaction(async (tx) => {
-          const consumed = await tx.invitations.updateMany({
-            where: { id: invitation.id, used_at: null },
-            data: {
-              used_at: new Date(),
-              used_by_user_id: userId,
-            },
-          });
-
-          if (consumed.count === 0) {
-            throw httpError(409, "Invitation already used");
-          }
-
-          try {
-            return await tx.memberships.create({
-              data: {
-                user_id: userId,
-                server_id: serverId,
-                role_id: ROLE_MEMBER,
-              },
-            });
-          } catch (error) {
-            if (isMembershipUniqueError(error)) {
-              throw httpError(409, "Already a member");
-            }
-            throw error;
-          }
-        });
-      } else {
-        try {
-          membership = await prisma.memberships.create({
-            data: {
-              user_id: userId,
-              server_id: serverId,
-              role_id: ROLE_MEMBER,
-            },
-          });
-        } catch (error) {
-          if (isMembershipUniqueError(error)) {
-            return res.status(409).json({ message: "Already a member" });
-          }
-          throw error;
-        }
-      }
-
-      const username =
-        typeof req.session.username === "string"
-          ? req.session.username
-          : ((
-              await prisma.users.findUnique({
-                where: { id: userId },
-                select: { username: true },
-              })
-            )?.username ?? `User ${userId}`);
-
-      const io = getSocketServer();
-      if (io) {
-        io.to(`server:${serverId}`).emit("server:member_joined", {
-          serverId,
-          userId,
-          username,
-        });
-      }
+      emitMemberJoined(serverId, userId, username);
 
       return res.status(201).json({
         ok: true,
@@ -419,11 +401,11 @@ export class MembershipController {
         typeof req.session.username === "string"
           ? req.session.username
           : ((
-              await prisma.users.findUnique({
-                where: { id: userId },
-                select: { username: true },
-              })
-            )?.username ?? `User ${userId}`);
+            await prisma.users.findUnique({
+              where: { id: userId },
+              select: { username: true },
+            })
+          )?.username ?? `User ${userId}`);
 
       const io = getSocketServer();
       if (io) {
@@ -503,6 +485,96 @@ export class MembershipController {
         newRoleId,
       );
       return res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async ban(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { serverId, targetUserId, callerUserId } = parseBanIds(req);
+      await ensureOwnerCanBan(serverId, callerUserId);
+      await ensureUserExists(targetUserId);
+      const targetMembership = await getMembershipOrThrow(serverId, targetUserId);
+
+      const reason = parseBanReason(req.body?.reason);
+      const bannedUntil = resolveBannedUntil(
+        req.body?.durationMinutes,
+        req.body?.bannedUntil,
+      );
+
+      const updated = await prisma.memberships.update({
+        where: { id: targetMembership.id },
+        data: {
+          banned_until: bannedUntil,
+          ban_reason: reason,
+          banned_by: callerUserId,
+        },
+      });
+
+      return res.json({ membership: updated });
+    } catch (err) {
+      if (isHttpError(err)) {
+        return res.status(err.status ?? 500).json({ message: err.message });
+      }
+      next(err);
+    }
+  }
+
+  async unban(req: Request, res: Response, next: NextFunction) {
+    try {
+      const serverId = Number(req.params.id);
+      const targetUserId = Number(req.body?.userId);
+      const callerUserId = Number(req.session.user_id);
+
+      if (!Number.isFinite(serverId) || !Number.isFinite(targetUserId)) {
+        return res.status(400).json({ message: "Invalid serverId or userId" });
+      }
+
+      const server = await prisma.servers.findUnique({
+        where: { id: serverId },
+        select: { id: true, owner_id: true },
+      });
+      if (!server) {
+        return res.status(404).json({ message: "Server not found" });
+      }
+
+      const callerMembership = await prisma.memberships.findFirst({
+        where: { user_id: callerUserId, server_id: serverId },
+        select: { role_id: true },
+      });
+      const isOwner =
+        server.owner_id === callerUserId ||
+        callerMembership?.role_id === ROLE_OWNER;
+      if (!isOwner) {
+        return res.status(403).json({ message: "Only owner can unban members" });
+      }
+
+      const targetUser = await prisma.users.findUnique({
+        where: { id: targetUserId },
+        select: { id: true },
+      });
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const targetMembership = await prisma.memberships.findFirst({
+        where: { user_id: targetUserId, server_id: serverId },
+      });
+      if (!targetMembership) {
+        return res.status(404).json({ message: "Membership not found" });
+      }
+
+      const updated = await prisma.memberships.update({
+        where: { id: targetMembership.id },
+        data: {
+          banned_until: null,
+          ban_reason: null,
+          banned_by: null,
+        },
+      });
+
+      return res.json({ membership: updated });
     } catch (err) {
       next(err);
     }

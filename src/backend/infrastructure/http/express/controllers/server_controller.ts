@@ -5,6 +5,9 @@ import { prisma } from "../../../persistence/prisma/prisma.client.js";
 import { getOnlineUserIds } from "../../../ws/presence_store.js";
 import { PrismaServerMapper } from "../../../persistence/prisma/mappers/prisma_server_mapper.js";
 import type { ServerProperties } from "../../../../domain/entities/server.js";
+import { assertNotBanned } from "../../../http/express/utils/ban_guard.js";
+
+
 const ROLE_OWNER = 1;
 
 interface ServerUpdatePayload {
@@ -74,31 +77,27 @@ export class ServerController {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      const userMemberships = await prisma.memberships.findMany({
-        where: { user_id: userId },
-        select: { server_id: true, role_id: true },
-      });
-      const joinedServerIds = userMemberships.map((row) => row.server_id);
+      const userMemberships = await new PrismaMembershipRepository().get_by_user_id(userId);
+      const joinedServerIds = userMemberships.map((row) => row.props.server_id);
 
       const servers = await prisma.servers.findMany({
         where: joinedServerIds.length
           ? {
-              OR: [{ is_public: true }, { id: { in: joinedServerIds } }],
-            }
+            OR: [{ is_public: true }, { id: { in: joinedServerIds } }],
+          }
           : { is_public: true },
         orderBy: { id: "asc" },
       });
-      // return res.json({ servers });
 
       const serverIds = servers.map((server) => server.id);
       const membershipCounts =
         serverIds.length === 0
           ? []
           : await prisma.memberships.groupBy({
-              by: ["server_id"],
-              where: { server_id: { in: serverIds } },
-              _count: { _all: true },
-            });
+            by: ["server_id"],
+            where: { server_id: { in: serverIds } },
+            _count: { _all: true },
+          });
       const membersByServer = new Map(
         membershipCounts.map((row) => [row.server_id, row._count._all]),
       );
@@ -108,24 +107,24 @@ export class ServerController {
         serverIds.length === 0 || onlineUserIds.length === 0
           ? []
           : await prisma.memberships.groupBy({
-              by: ["server_id"],
-              where: {
-                server_id: { in: serverIds },
-                user_id: { in: onlineUserIds },
-              },
-              _count: { _all: true },
-            });
+            by: ["server_id"],
+            where: {
+              server_id: { in: serverIds },
+              user_id: { in: onlineUserIds },
+            },
+            _count: { _all: true },
+          });
       const onlineByServer = new Map(
         onlineCounts.map((row) => [row.server_id, row._count._all]),
       );
 
       const visibleServerSet = new Set(serverIds);
       const visibleMemberships = userMemberships.filter((row) =>
-        visibleServerSet.has(row.server_id),
+        visibleServerSet.has(row.props.server_id),
       );
-      const joinedSet = new Set(visibleMemberships.map((row) => row.server_id));
+      const joinedSet = new Set(visibleMemberships.map((row) => row.props.server_id));
       const roleByServer = new Map(
-        visibleMemberships.map((row) => [row.server_id, row.role_id]),
+        visibleMemberships.map((row) => [row.props.server_id, row.props.role_id]),
       );
 
       const payload = servers.map((server) => {
@@ -157,6 +156,7 @@ export class ServerController {
     try {
       const id = Number(req.params.id);
       const userId = Number(req.session.user_id);
+      await assertNotBanned(userId, id);
       const server = await new PrismaServerRepository().find_by_id(id);
       const membership =
         await new PrismaMembershipRepository().get_by_server_id(id);
@@ -209,7 +209,7 @@ export class ServerController {
         await tx.channels.create({
           data: {
             server_id: created.id,
-            name: "général",
+            name: "general",
           },
         });
 
@@ -253,9 +253,7 @@ export class ServerController {
           userId,
           serverId,
         );
-
-      if (!callerMembership) return;
-      const callerRoleId = getCallerRoleId(callerMembership);
+      const callerRoleId = getCallerRoleId(callerMembership ?? null);
       if (
         !ensureOwner({
           ownerId: server.props.owner_id,

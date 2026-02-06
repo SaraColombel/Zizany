@@ -41,6 +41,9 @@ CREATE TABLE "Memberships" (
     "user_id" INTEGER NOT NULL,
     "server_id" INTEGER NOT NULL,
     "role_id" INTEGER NOT NULL,
+    "banned_until" TIMESTAMP(3),
+    "ban_reason" TEXT,
+    "banned_by" INTEGER,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -89,6 +92,12 @@ CREATE UNIQUE INDEX "Users_email_key" ON "Users"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Roles_name_key" ON "Roles"("name");
+
+-- CreateIndex
+CREATE INDEX "Memberships_server_id_idx" ON "Memberships"("server_id");
+
+-- CreateIndex
+CREATE INDEX "Memberships_banned_until_idx" ON "Memberships"("banned_until");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Memberships_user_id_server_id_key" ON "Memberships"("user_id", "server_id");

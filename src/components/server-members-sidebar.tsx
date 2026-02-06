@@ -105,10 +105,10 @@ export function ServerMembersSidebar({ serverId }: { serverId: string }) {
 
   function getRoleMeta(roleId: number) {
     if (roleId === 1) {
-      return { label: "Owner", className: "text-emerald-500" }
+      return { label: "Owner", className: "text-yellow-200" }
     }
     if (roleId === 2) {
-      return { label: "Admin", className: "text-red-500" }
+      return { label: "Admin", className: "text-red-300" }
     }
     return { label: null, className: "" }
   }
