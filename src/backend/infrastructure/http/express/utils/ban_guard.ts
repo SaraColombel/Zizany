@@ -1,4 +1,4 @@
-import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
+import { prisma } from "../../../persistence/prisma/prisma.client.js";
 
 export class HttpError extends Error {
   status: number;

@@ -1,11 +1,12 @@
 import { NextFunction, Request, Response } from "express";
-import { PrismaServerRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_server_repository";
-import { PrismaMembershipRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_membership_repository";
-import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
-import { getOnlineUserIds } from "@/backend/infrastructure/ws/presence_store";
-import { PrismaServerMapper } from "@/backend/infrastructure/persistence/prisma/mappers/prisma_server_mapper";
-import { assertNotBanned } from "@/backend/infrastructure/http/express/utils/ban_guard";
-import type { ServerProperties } from "@/backend/domain/entities/server";
+import { PrismaServerRepository } from "../../../persistence/prisma/repositories/prisma_server_repository.js";
+import { PrismaMembershipRepository } from "../../../persistence/prisma/repositories/prisma_membership_repository.js";
+import { prisma } from "../../../persistence/prisma/prisma.client.js";
+import { getOnlineUserIds } from "../../../ws/presence_store.js";
+import { PrismaServerMapper } from "../../../persistence/prisma/mappers/prisma_server_mapper.js";
+import type { ServerProperties } from "../../../../domain/entities/server.js";
+import { assertNotBanned } from "../../../http/express/utils/ban_guard.js";
+
 
 const ROLE_OWNER = 1;
 
@@ -76,11 +77,8 @@ export class ServerController {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      const userMemberships = await prisma.memberships.findMany({
-        where: { user_id: userId },
-        select: { server_id: true, role_id: true },
-      });
-      const joinedServerIds = userMemberships.map((row) => row.server_id);
+      const userMemberships = await new PrismaMembershipRepository().get_by_user_id(userId);
+      const joinedServerIds = userMemberships.map((row) => row.props.server_id);
 
       const servers = await prisma.servers.findMany({
         where: joinedServerIds.length
@@ -90,7 +88,6 @@ export class ServerController {
           : { is_public: true },
         orderBy: { id: "asc" },
       });
-      // return res.json({ servers });
 
       const serverIds = servers.map((server) => server.id);
       const membershipCounts =
@@ -123,11 +120,11 @@ export class ServerController {
 
       const visibleServerSet = new Set(serverIds);
       const visibleMemberships = userMemberships.filter((row) =>
-        visibleServerSet.has(row.server_id),
+        visibleServerSet.has(row.props.server_id),
       );
-      const joinedSet = new Set(visibleMemberships.map((row) => row.server_id));
+      const joinedSet = new Set(visibleMemberships.map((row) => row.props.server_id));
       const roleByServer = new Map(
-        visibleMemberships.map((row) => [row.server_id, row.role_id]),
+        visibleMemberships.map((row) => [row.props.server_id, row.props.role_id]),
       );
 
       const payload = servers.map((server) => {
@@ -269,7 +266,10 @@ export class ServerController {
       }
 
       const payload = buildServerUpdatePayload(req.body);
-      const updated = await new PrismaServerRepository().update(serverId, payload);
+      const updated = await new PrismaServerRepository().update(
+        serverId,
+        payload,
+      );
       return res.json({ server: updated });
     } catch (err) {
       next(err);

@@ -1,13 +1,13 @@
 import { NextFunction, Request, Response } from "express";
 
-import { PrismaChannelRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_channel_repository";
-import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
+import { PrismaChannelRepository } from "../../../persistence/prisma/repositories/prisma_channel_repository.js";
+import { prisma } from "../../../persistence/prisma/prisma.client.js";
 import {
   createChannelValidator,
   updateChannelValidator,
-} from "@/backend/infrastructure/validators/vine/channel_validator";
+} from "../../../validators/vine/channel_validator.js";
 import { ValidationError } from "@vinejs/vine";
-import { assertNotBanned } from "@/backend/infrastructure/http/express/utils/ban_guard";
+import { assertNotBanned } from "../../../http/express/utils/ban_guard.js";
 
 async function resolveServerId(channelId: number): Promise<number | null> {
   if (!Number.isFinite(channelId)) return null;

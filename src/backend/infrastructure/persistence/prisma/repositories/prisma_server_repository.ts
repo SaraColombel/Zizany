@@ -1,9 +1,9 @@
-import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
-import { Server } from "@/backend/domain/entities/server";
-import { ServerRepository } from "@/backend/domain/repositories/server_repository";
-import { PrismaServerMapper } from "@/backend/infrastructure/persistence/prisma/mappers/prisma_server_mapper";
+import { prisma } from "../../../persistence/prisma/prisma.client.js";
+import { Server } from "../../../../domain/entities/server.js";
+import { ServerRepository } from "../../../../domain/repositories/server_repository.js";
+import { PrismaServerMapper } from "../../../persistence/prisma/mappers/prisma_server_mapper.js";
 
-import type { ServerProperties } from "@/backend/domain/entities/server";
+import type { ServerProperties } from "../../../../domain/entities/server.js";
 
 export class PrismaServerRepository extends ServerRepository {
   async find_by_id(id: number): Promise<Server | undefined> {
@@ -43,7 +43,10 @@ export class PrismaServerRepository extends ServerRepository {
     return PrismaServerMapper.toDomain(data);
   }
 
-  async update(id: number, payload: Partial<Omit<ServerProperties, "id" | "owner_id">>): Promise<Server> {
+  async update(
+    id: number,
+    payload: Partial<Omit<ServerProperties, "id" | "owner_id">>,
+  ): Promise<Server> {
     const data = await prisma.servers.update({
       where: { id },
       data: {

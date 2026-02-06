@@ -3,8 +3,8 @@
  * Exemple d'implémentation du UserRepository du domaine.
  */
 
-import { UserRepository } from "@/backend/domain/repositories/user_repository";
-import { User, UserProperties } from "@/backend/domain/entities/user";
+import { UserRepository } from "../../domain/repositories/user_repository.js";
+import { User, UserProperties } from "../../domain/entities/user.js";
 
 export class InMemoryUserRepository implements UserRepository {
   #database: Set<User>;
@@ -13,11 +13,15 @@ export class InMemoryUserRepository implements UserRepository {
   }
 
   async find_by_email(email: string): Promise<User | undefined> {
-    return this.#database.values().find((user) => user.props.email === email);
+    return [...this.#database.values()].find(
+      (user) => user.props.email === email,
+    );
   }
 
   async find_by_id(userId: number): Promise<User | undefined> {
-    return this.#database.values().find((user) => user.props.id === userId);
+    return [...this.#database.values()].find(
+      (user) => user.props.id === userId,
+    );
   }
 
   async get_all(): Promise<User[]> {

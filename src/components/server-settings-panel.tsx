@@ -1,19 +1,19 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useRouter } from "next/navigation"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { useServers } from "@/components/servers-context"
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useServers } from "@/components/servers-context";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -32,13 +32,13 @@ const ROLE_LABELS: Record<number, string> = {
   1: "Owner",
   2: "Admin",
   3: "Member",
-}
+};
 
 const ROLE_OPTIONS = [
   { id: 1, label: "Owner" },
   { id: 2, label: "Admin" },
   { id: 3, label: "Member" },
-]
+];
 
 interface Member {
   id: number
@@ -49,19 +49,28 @@ interface Member {
   ban_reason?: string | null
   banned_by?: number | null
   user?: {
-    id: number
-    username: string
-    thumbnail: string | null
-  }
+    id: number;
+    username: string;
+    thumbnail: string | null;
+  };
   role?: {
-    id: number
-    name: string
-  }
+    id: number;
+    name: string;
+  };
 }
 
 interface RawMember extends Partial<Member> {
-  props?: Partial<Member>
+  props?: Partial<Member>;
 }
+
+interface ServerPayload {
+  server?: {
+    name?: string;
+    props?: {
+      name?: string;
+    };
+  };
+};
 
 function getInitials(name: string) {
   return name
@@ -69,7 +78,7 @@ function getInitials(name: string) {
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
-    .join("")
+    .join("");
 }
 
 function formatDateTime(value?: string | null) {
@@ -124,29 +133,31 @@ export function ServerSettingsPanel({
   onOwnershipTransferred,
   onDeleted,
 }: {
-  serverId: string
-  serverName?: string
-  isPublic?: boolean
-  open: boolean
-  onOwnershipTransferred?: () => void
-  onDeleted?: () => void
+  serverId: string;
+  serverName?: string;
+  isPublic?: boolean;
+  open: boolean;
+  onOwnershipTransferred?: () => void;
+  onDeleted?: () => void;
 }) {
-  const router = useRouter()
-  const { refresh } = useServers()
-  const [members, setMembers] = React.useState<Member[]>([])
-  const [loading, setLoading] = React.useState<boolean>(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const [savingIds, setSavingIds] = React.useState<Set<number>>(new Set())
-  const [nameInput, setNameInput] = React.useState(serverName ?? "")
-  const [savedName, setSavedName] = React.useState(serverName ?? "")
-  const [nameError, setNameError] = React.useState<string | null>(null)
-  const [nameSuccess, setNameSuccess] = React.useState<string | null>(null)
-  const [isSavingChanges, setIsSavingChanges] = React.useState(false)
-  const [isPublic, setIsPublic] = React.useState(Boolean(initialIsPublic))
-  const [savedIsPublic, setSavedIsPublic] = React.useState(Boolean(initialIsPublic))
-  const [publicError, setPublicError] = React.useState<string | null>(null)
-  const [isDeleting, setIsDeleting] = React.useState(false)
-  const [deleteError, setDeleteError] = React.useState<string | null>(null)
+  const router = useRouter();
+  const { refresh } = useServers();
+  const [members, setMembers] = React.useState<Member[]>([]);
+  const [loading, setLoading] = React.useState<boolean>(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [savingIds, setSavingIds] = React.useState<Set<number>>(new Set());
+  const [nameInput, setNameInput] = React.useState(serverName ?? "");
+  const [savedName, setSavedName] = React.useState(serverName ?? "");
+  const [nameError, setNameError] = React.useState<string | null>(null);
+  const [nameSuccess, setNameSuccess] = React.useState<string | null>(null);
+  const [isSavingChanges, setIsSavingChanges] = React.useState(false);
+  const [isPublic, setIsPublic] = React.useState(Boolean(initialIsPublic));
+  const [savedIsPublic, setSavedIsPublic] = React.useState(
+    Boolean(initialIsPublic),
+  );
+  const [publicError, setPublicError] = React.useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
   const [ownerConfirm, setOwnerConfirm] = React.useState<{
     member: Member
     nextRoleId: number
@@ -169,61 +180,61 @@ export function ServerSettingsPanel({
   const [banSavingIds, setBanSavingIds] = React.useState<Set<number>>(new Set())
 
   const apiBase =
-    process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4000"
-  const ownerConfirmPhrase = "I understand"
-  const trimmedName = nameInput.trim()
-  const nameChanged = trimmedName !== savedName.trim()
-  const isPublicChanged = isPublic !== savedIsPublic
+    process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4000";
+  const ownerConfirmPhrase = "I understand";
+  const trimmedName = nameInput.trim();
+  const nameChanged = trimmedName !== savedName.trim();
+  const isPublicChanged = isPublic !== savedIsPublic;
   const canSaveChanges =
     ((nameChanged && trimmedName.length > 0) || isPublicChanged) &&
-    !isSavingChanges
+    !isSavingChanges;
   const displayServerName =
     savedName.trim() || serverName?.trim() || "this server"
   const activeMembers = members.filter((member) => !isMemberBanned(member))
   const bannedMembers = members.filter((member) => isMemberBanned(member))
 
   function getUpdatedName(
-    payload: Record<string, unknown> | null,
+    payload: ServerPayload | null,
     fallback: string,
     update: { name?: string },
   ) {
     if (typeof payload?.server?.props?.name === "string") {
-      return String(payload.server.props.name)
+      return String(payload.server.props.name);
     }
     if (typeof payload?.server?.name === "string") {
-      return String(payload.server.name)
+      return String(payload.server.name);
     }
-    return update.name ?? fallback
+    return update.name ?? fallback;
   }
 
   React.useEffect(() => {
-    if (!open) return
-    const nextName = serverName ?? ""
-    setNameInput(nextName)
-    setSavedName(nextName)
-    setNameError(null)
-    setNameSuccess(null)
-    setIsPublic(Boolean(initialIsPublic))
-    setSavedIsPublic(Boolean(initialIsPublic))
-    setPublicError(null)
-  }, [open, serverId, serverName, initialIsPublic])
+    if (!open) return;
+    const nextName = serverName ?? "";
+    setNameInput(nextName);
+    setSavedName(nextName);
+    setNameError(null);
+    setNameSuccess(null);
+    setIsPublic(Boolean(initialIsPublic));
+    setSavedIsPublic(Boolean(initialIsPublic));
+    setPublicError(null);
+  }, [open, serverId, serverName, initialIsPublic]);
 
   const loadMembers = React.useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
-    if (!serverId) return
-    try {
-      if (!silent) {
-        setLoading(true)
-      }
-      setError(null)
+      if (!serverId) return;
+      try {
+        if (!silent) {
+          setLoading(true);
+        }
+        setError(null);
 
-      const res = await fetch(`${apiBase}/api/servers/${serverId}/members`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      })
+        const res = await fetch(`${apiBase}/api/servers/${serverId}/members`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const json = await res.json()
       const normalized: Member[] = (json.members ?? [])
@@ -294,20 +305,20 @@ export function ServerSettingsPanel({
   }, [apiBase, serverId])
 
   React.useEffect(() => {
-    if (!open) return
-    loadMembers().catch(() => null)
-  }, [open, loadMembers])
+    if (!open) return;
+    loadMembers().catch(() => null);
+  }, [open, loadMembers]);
 
   const updateRole = React.useCallback(
     async (member: Member, nextRoleId: number) => {
-      if (!serverId || member.role_id === nextRoleId) return false
+      if (!serverId || member.role_id === nextRoleId) return false;
 
       setSavingIds((prev) => {
-        const next = new Set(prev)
-        next.add(member.user_id)
-        return next
-      })
-      setError(null)
+        const next = new Set(prev);
+        next.add(member.user_id);
+        return next;
+      });
+      setError(null);
 
       try {
         const res = await fetch(
@@ -318,42 +329,42 @@ export function ServerSettingsPanel({
             credentials: "include",
             body: JSON.stringify({ role_id: nextRoleId }),
           },
-        )
+        );
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        await loadMembers({ silent: true })
-        return true
+        await loadMembers({ silent: true });
+        return true;
       } catch (e) {
         setError(
           e instanceof Error
             ? `Failed to update role (${e.message})`
             : "Failed to update role",
-        )
-        return false
+        );
+        return false;
       } finally {
         setSavingIds((prev) => {
-          const next = new Set(prev)
-          next.delete(member.user_id)
-          return next
-        })
+          const next = new Set(prev);
+          next.delete(member.user_id);
+          return next;
+        });
       }
     },
     [apiBase, serverId, loadMembers],
-  )
+  );
 
   const handleRoleChange = React.useCallback(
     async (member: Member, nextRoleId: number) => {
-      if (!serverId || member.role_id === nextRoleId) return
+      if (!serverId || member.role_id === nextRoleId) return;
 
       if (nextRoleId === 1) {
-        setOwnerConfirm({ member, nextRoleId })
-        setOwnerConfirmText("")
-        setOwnerConfirmError(null)
-        return
+        setOwnerConfirm({ member, nextRoleId });
+        setOwnerConfirmText("");
+        setOwnerConfirmError(null);
+        return;
       }
 
-      await updateRole(member, nextRoleId)
+      await updateRole(member, nextRoleId);
     },
     [serverId, updateRole],
   )
@@ -484,21 +495,21 @@ export function ServerSettingsPanel({
   )
 
   const confirmOwnerTransfer = React.useCallback(async () => {
-    if (!ownerConfirm) return
+    if (!ownerConfirm) return;
 
     if (ownerConfirmText.trim() !== ownerConfirmPhrase) {
       setOwnerConfirmError(
         `Please type "${ownerConfirmPhrase}" to confirm this transfer.`,
-      )
-      return
+      );
+      return;
     }
 
-    setOwnerConfirm(null)
-    setOwnerConfirmText("")
-    setOwnerConfirmError(null)
-    onOwnershipTransferred?.()
+    setOwnerConfirm(null);
+    setOwnerConfirmText("");
+    setOwnerConfirmError(null);
+    onOwnershipTransferred?.();
 
-    const ok = await updateRole(ownerConfirm.member, ownerConfirm.nextRoleId)
+    const ok = await updateRole(ownerConfirm.member, ownerConfirm.nextRoleId);
     if (ok) {
     }
   }, [
@@ -507,31 +518,31 @@ export function ServerSettingsPanel({
     ownerConfirmText,
     onOwnershipTransferred,
     updateRole,
-  ])
+  ]);
 
   const handleSaveChanges = React.useCallback(async () => {
-    if (!serverId || isSavingChanges) return
+    if (!serverId || isSavingChanges) return;
 
-    const updates: { name?: string; isPublic?: boolean } = {}
+    const updates: { name?: string; isPublic?: boolean } = {};
 
     if (nameChanged) {
       if (trimmedName.length === 0) {
-        setNameError("Server name is required")
-        return
+        setNameError("Server name is required");
+        return;
       }
-      updates.name = trimmedName
+      updates.name = trimmedName;
     }
 
     if (isPublicChanged) {
-      updates.isPublic = isPublic
+      updates.isPublic = isPublic;
     }
 
-    if (Object.keys(updates).length === 0) return
+    if (Object.keys(updates).length === 0) return;
 
-    setIsSavingChanges(true)
-    setNameError(null)
-    setNameSuccess(null)
-    setPublicError(null)
+    setIsSavingChanges(true);
+    setNameError(null);
+    setNameSuccess(null);
+    setPublicError(null);
 
     try {
       const res = await fetch(`${apiBase}/api/servers/${serverId}`, {
@@ -539,31 +550,31 @@ export function ServerSettingsPanel({
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(updates),
-      })
+      });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        throw new Error(data?.message ?? `HTTP ${res.status}`)
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.message ?? `HTTP ${res.status}`);
       }
 
-      const json = await res.json().catch(() => null)
-      const updatedName = getUpdatedName(json, savedName, updates)
+      const json = (await res.json().catch(() => null)) as ServerPayload | null;
+      const updatedName = getUpdatedName(json, savedName, updates);
 
-      setSavedName(updatedName)
-      setNameInput(updatedName)
+      setSavedName(updatedName);
+      setNameInput(updatedName);
       setSavedIsPublic(
         typeof updates.isPublic === "boolean"
           ? updates.isPublic
           : savedIsPublic,
-      )
-      setNameSuccess("Server updated.")
-      await refresh()
+      );
+      setNameSuccess("Server updated.");
+      await refresh();
     } catch (e) {
       setPublicError(
         e instanceof Error ? e.message : "Failed to update server",
-      )
+      );
     } finally {
-      setIsSavingChanges(false)
+      setIsSavingChanges(false);
     }
   }, [
     apiBase,
@@ -576,36 +587,36 @@ export function ServerSettingsPanel({
     savedName,
     serverId,
     trimmedName,
-  ])
+  ]);
 
   const handleDeleteServer = React.useCallback(async () => {
-    if (!serverId || isDeleting) return
-    setDeleteError(null)
-    setIsDeleting(true)
+    if (!serverId || isDeleting) return;
+    setDeleteError(null);
+    setIsDeleting(true);
 
     try {
       const res = await fetch(`${apiBase}/api/servers/${serverId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-      })
+      });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        throw new Error(data?.message ?? `HTTP ${res.status}`)
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.message ?? `HTTP ${res.status}`);
       }
 
-      await refresh()
-      onDeleted?.()
-      router.push("/servers")
+      await refresh();
+      onDeleted?.();
+      router.push("/servers");
     } catch (e) {
       setDeleteError(
         e instanceof Error ? e.message : "Failed to delete server",
-      )
+      );
     } finally {
-      setIsDeleting(false)
+      setIsDeleting(false);
     }
-  }, [apiBase, isDeleting, onDeleted, refresh, router, serverId])
+  }, [apiBase, isDeleting, onDeleted, refresh, router, serverId]);
 
   return (
     <div className="relative flex h-full flex-col">
@@ -633,9 +644,9 @@ export function ServerSettingsPanel({
             <Input
               value={nameInput}
               onChange={(event) => {
-                setNameInput(event.target.value)
-                if (nameError) setNameError(null)
-                if (nameSuccess) setNameSuccess(null)
+                setNameInput(event.target.value);
+                if (nameError) setNameError(null);
+                if (nameSuccess) setNameSuccess(null);
               }}
               placeholder="My awesome server"
             />
@@ -652,15 +663,16 @@ export function ServerSettingsPanel({
               <div>
                 <div className="text-sm font-medium">Server visibility</div>
                 <div className="text-xs text-muted-foreground">
-                  A public server is visible in the servers list and joinable without invitation.
+                  A public server is visible in the servers list and joinable
+                  without invitation.
                 </div>
               </div>
               <Select
                 value={isPublic ? "public" : "private"}
                 onValueChange={(value) => {
-                  setIsPublic(value === "public")
-                  if (publicError) setPublicError(null)
-                  if (nameSuccess) setNameSuccess(null)
+                  setIsPublic(value === "public");
+                  if (publicError) setPublicError(null);
+                  if (nameSuccess) setNameSuccess(null);
                 }}
                 disabled={isSavingChanges}
               >
@@ -733,7 +745,7 @@ export function ServerSettingsPanel({
                 <TableRow>
                   <TableHead>Member</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -795,7 +807,7 @@ export function ServerSettingsPanel({
                           </Select>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell>
                         {!isOwner && (
                           <Button
                             type="button"
@@ -833,6 +845,7 @@ export function ServerSettingsPanel({
                   <TableRow>
                     <TableHead>Member</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -871,18 +884,19 @@ export function ServerSettingsPanel({
                             <TooltipContent className="max-w-xs space-y-2 text-xs">
                               <div>Ban ends: {banEndsAt}</div>
                               <div>Reason: {reason}</div>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                className="mt-1 w-full"
-                                onClick={() => handleUnban(member)}
-                                disabled={isProcessing}
-                              >
-                                {isProcessing ? "Unbanning..." : "Unban"}
-                              </Button>
                             </TooltipContent>
                           </Tooltip>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleUnban(member)}
+                            disabled={isProcessing}
+                          >
+                            {isProcessing ? "Unbanning..." : "Unban"}
+                          </Button>
                         </TableCell>
                       </TableRow>
                     )
@@ -909,9 +923,9 @@ export function ServerSettingsPanel({
               size="sm"
               className="cursor-pointer"
               onClick={() => {
-                setDeleteConfirmOpen(true)
-                setDeleteConfirmText("")
-                setDeleteConfirmError(null)
+                setDeleteConfirmOpen(true);
+                setDeleteConfirmText("");
+                setDeleteConfirmError(null);
               }}
               disabled={isDeleting}
             >
@@ -949,9 +963,9 @@ export function ServerSettingsPanel({
               <Input
                 value={ownerConfirmText}
                 onChange={(event) => {
-                  setOwnerConfirmText(event.target.value)
+                  setOwnerConfirmText(event.target.value);
                   if (ownerConfirmError) {
-                    setOwnerConfirmError(null)
+                    setOwnerConfirmError(null);
                   }
                 }}
                 placeholder={ownerConfirmPhrase}
@@ -968,9 +982,9 @@ export function ServerSettingsPanel({
                 type="button"
                 variant="ghost"
                 onClick={() => {
-                  setOwnerConfirm(null)
-                  setOwnerConfirmText("")
-                  setOwnerConfirmError(null)
+                  setOwnerConfirm(null);
+                  setOwnerConfirmText("");
+                  setOwnerConfirmError(null);
                 }}
               >
                 Cancel
@@ -1006,7 +1020,8 @@ export function ServerSettingsPanel({
                 .
               </p>
               <p className="text-sm text-destructive">
-                This will remove channels, messages, and memberships permanently.
+                This will remove channels, messages, and memberships
+                permanently.
               </p>
             </div>
 
@@ -1017,9 +1032,9 @@ export function ServerSettingsPanel({
               <Input
                 value={deleteConfirmText}
                 onChange={(event) => {
-                  setDeleteConfirmText(event.target.value)
+                  setDeleteConfirmText(event.target.value);
                   if (deleteConfirmError) {
-                    setDeleteConfirmError(null)
+                    setDeleteConfirmError(null);
                   }
                 }}
                 placeholder={ownerConfirmPhrase}
@@ -1036,9 +1051,9 @@ export function ServerSettingsPanel({
                 type="button"
                 variant="ghost"
                 onClick={() => {
-                  setDeleteConfirmOpen(false)
-                  setDeleteConfirmText("")
-                  setDeleteConfirmError(null)
+                  setDeleteConfirmOpen(false);
+                  setDeleteConfirmText("");
+                  setDeleteConfirmError(null);
                 }}
               >
                 Cancel
@@ -1050,13 +1065,13 @@ export function ServerSettingsPanel({
                   if (deleteConfirmText.trim() !== ownerConfirmPhrase) {
                     setDeleteConfirmError(
                       `Please type "${ownerConfirmPhrase}" to confirm deletion.`,
-                    )
-                    return
+                    );
+                    return;
                   }
-                  setDeleteConfirmOpen(false)
-                  setDeleteConfirmText("")
-                  setDeleteConfirmError(null)
-                  await handleDeleteServer()
+                  setDeleteConfirmOpen(false);
+                  setDeleteConfirmText("");
+                  setDeleteConfirmError(null);
+                  await handleDeleteServer();
                 }}
                 disabled={isDeleting}
               >

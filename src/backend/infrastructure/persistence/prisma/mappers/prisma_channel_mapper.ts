@@ -1,5 +1,5 @@
-import { Channel as DomainChannel } from "@/backend/domain/entities/channel";
-import { Channels as PrismaChannel } from "@/../generated/prisma/client";
+import { Channel as DomainChannel } from "../../../..//domain/entities/channel.js";
+import { Channels as PrismaChannel } from "@prisma/client";
 
 export class PrismaChannelMapper {
   static toDomain(prismaChannel: PrismaChannel): DomainChannel {

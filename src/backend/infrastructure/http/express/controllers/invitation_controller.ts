@@ -1,9 +1,9 @@
 import { NextFunction, Request, Response } from "express";
 import crypto from "crypto";
-import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
-import { PrismaMembershipRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_membership_repository";
-import { PrismaServerRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_server_repository";
-import { getSocketServer } from "@/backend/infrastructure/ws/socket";
+import { prisma } from "../../../persistence/prisma/prisma.client.js";
+import { PrismaMembershipRepository } from "../../../persistence/prisma/repositories/prisma_membership_repository.js";
+import { PrismaServerRepository } from "../../../persistence/prisma/repositories/prisma_server_repository.js";
+import { getSocketServer } from "../../../../infrastructure/ws/socket.js";
 
 const ROLE_OWNER = 1;
 const ROLE_ADMIN = 2;
@@ -108,10 +108,11 @@ export class InvitationController {
         return res.status(404).json({ message: "Server not found" });
       }
 
-      const membership = await new PrismaMembershipRepository().find_by_user_and_server(
-        userId,
-        serverId,
-      );
+      const membership =
+        await new PrismaMembershipRepository().find_by_user_and_server(
+          userId,
+          serverId,
+        );
 
       const isOwner =
         server.props.owner_id === userId ||
@@ -125,7 +126,11 @@ export class InvitationController {
       }
 
       const expiresAt = addHours(new Date(), INVITE_EXPIRY_HOURS);
-      const invitation = await createInviteWithRetry(serverId, userId, expiresAt);
+      const invitation = await createInviteWithRetry(
+        serverId,
+        userId,
+        expiresAt,
+      );
 
       return res.status(201).json({
         code: invitation.code,
@@ -181,7 +186,6 @@ export class InvitationController {
     return invitation;
   }
 
-
   async consumeInviteAndCreateMembership(params: {
     invitationId: number;
     userId: number;
@@ -223,7 +227,10 @@ export class InvitationController {
     return user?.username ?? `User ${userId}`;
   }
 
-  emitMemberJoined(serverId: number, payload: { userId: number; username: string }) {
+  emitMemberJoined(
+    serverId: number,
+    payload: { userId: number; username: string },
+  ) {
     const io = getSocketServer();
     if (!io) return;
     io.to(`server:${serverId}`).emit("server:member_joined", {
@@ -244,14 +251,18 @@ export class InvitationController {
       const invitation = await this.getInvitationOr404Or409(code, res);
       if (!invitation) return;
 
-      const server = await new PrismaServerRepository().find_by_id(invitation.server_id);
-      if (!server) return res.status(404).json({ message: "Server not found" });
-
-      const existing = await new PrismaMembershipRepository().find_by_user_and_server(
-        userId,
+      const server = await new PrismaServerRepository().find_by_id(
         invitation.server_id,
       );
-      if (existing) return res.status(409).json({ message: "Already a member" });
+      if (!server) return res.status(404).json({ message: "Server not found" });
+
+      const existing =
+        await new PrismaMembershipRepository().find_by_user_and_server(
+          userId,
+          invitation.server_id,
+        );
+      if (existing)
+        return res.status(409).json({ message: "Already a member" });
 
       const membership = await this.consumeInviteAndCreateMembership({
         invitationId: invitation.id,
@@ -262,7 +273,9 @@ export class InvitationController {
       const username = await this.getUsername(req, userId);
       this.emitMemberJoined(invitation.server_id, { userId, username });
 
-      return res.status(201).json({ ok: true, membership, server: server.props });
+      return res
+        .status(201)
+        .json({ ok: true, membership, server: server.props });
     } catch (err) {
       if (isHttpError(err)) {
         return res.status(err.status ?? 500).json({ message: err.message });

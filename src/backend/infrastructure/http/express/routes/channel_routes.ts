@@ -1,15 +1,15 @@
 import { Router } from "express";
-import { ChannelController } from "../controllers/channel_controller";
-import { MessageController } from "../controllers/message_controller";
+import { ChannelController } from "../controllers/channel_controller.js";
+import { MessageController } from "../controllers/message_controller.js";
 
 const router = Router({ mergeParams: true });
 const channelController = new ChannelController();
 const messageController = new MessageController();
 
-router.get("/:id", channelController.index);
-router.get("/:id/messages", messageController.all);
-router.post("/:id/messages", messageController.create);
-router.delete("/:channelId/messages/:messageId", messageController.delete);
-router.patch("/:channelId/messages/:messageId", messageController.update);
+router.get("/:id", channelController.index.bind(channelController));
+router.get("/:id/messages", messageController.all.bind(messageController));
+router.post("/:id/messages", messageController.create.bind(messageController));
+router.delete("/:channelId/messages/:messageId", messageController.delete.bind(messageController));
+router.patch("/:channelId/messages/:messageId", messageController.update.bind(messageController));
 
 export default router;

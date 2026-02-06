@@ -55,7 +55,7 @@ const requireServerId = async (params: Promise<{ serverId: string }>) => {
 const getFirstChannelId = (channels: ChannelApiItem[]): string | number | null => {
   const first = channels[0];
   if (!first) return null;
-  return "props" in first ? first.props.id : first.id;
+  return first.props?.id ?? first.id ?? null;
 };
 
 const fetchChannels = async (serverId: string, cookieHeader: string) => {

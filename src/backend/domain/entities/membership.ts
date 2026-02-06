@@ -1,4 +1,4 @@
-import { Entity } from "@/backend/domain/core/entity";
+import { Entity } from "../core/entity.js";
 
 export interface MembershipProperties {
   // Utilisation des id ou des noms dans le domaine (pour les FK) ??
@@ -6,6 +6,7 @@ export interface MembershipProperties {
   user_id: number;
   server_id: number;
   role_id: number;
+
 }
 
 export class Membership extends Entity<MembershipProperties> {

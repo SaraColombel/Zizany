@@ -1,9 +1,9 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import apiRouter from "./routes";
+import apiRouter from "./routes/index.js";
 import session from "express-session";
-import { httpErrorMiddleware } from "./middlewares/http_error_middleware";
+import { httpErrorMiddleware } from "./middlewares/http_error_middleware.js";
 
 /**Export utilisé côté Socket.IO */
 export const sessionMiddleware = session({

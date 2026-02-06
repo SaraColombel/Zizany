@@ -1,13 +1,13 @@
 import { Router } from "express";
 
-import healthRouter from "./health_routes";
-import authRouter from "./auth_routes";
-import serverRouter from "./server_routes";
-import channelRouter from "./channel_routes";
-import messageRouter from "./message_routes";
-import inviteRouter from "./invite_routes";
+import healthRouter from "./health_routes.js";
+import authRouter from "./auth_routes.js";
+import serverRouter from "./server_routes.js";
+import channelRouter from "./channel_routes.js";
+import messageRouter from "./message_routes.js";
+import inviteRouter from "./invite_routes.js";
 
-import { AuthMiddleware } from "../middlewares/auth_middleware";
+import { AuthMiddleware } from "../middlewares/auth_middleware.js";
 
 const router = Router();
 const authMiddleware = new AuthMiddleware();

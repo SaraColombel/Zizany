@@ -16,20 +16,23 @@ interface ApiMessage {
   props?: ApiMessage;
 }
 
-function normalizeIncomingMessage(raw: ApiMessage | null | undefined): UiMessage | null {
+function normalizeIncomingMessage(
+  raw: ApiMessage | null | undefined,
+): UiMessage | null {
   if (!raw) return null;
 
   const base = raw.props ?? raw;
 
   const createdAt =
-    typeof base.created_at === "string" ? base.created_at : new Date().toISOString();
+    typeof base.created_at === "string"
+      ? base.created_at
+      : new Date().toISOString();
   const updatedAt =
     typeof base.updated_at === "string" ? base.updated_at : createdAt;
 
   const authorId = base.user?.id ?? base.user_id;
   const authorName =
-    base.user?.username ??
-    (authorId != null ? `User ${authorId}` : "Unknown");
+    base.user?.username ?? (authorId != null ? `User ${authorId}` : "Unknown");
 
   return {
     id: String(base.id),
@@ -241,10 +244,13 @@ export function ChatPane({
 
   React.useEffect(() => {
     setTypingUsers([]);
-    const socket = io(process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:4000", {
-      withCredentials: true,
-      transports: ["websocket"],
-    });
+    const socket = io(
+      process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:4000",
+      {
+        withCredentials: true,
+        transports: ["websocket"],
+      },
+    );
 
     socketRef.current = socket;
 
@@ -288,16 +294,16 @@ export function ChatPane({
     });
 
     socket.on("message:deleted", (payload: { messageId: number }) => {
-      setMessages((prev) => prev.filter((m) => m.id !== String(payload.messageId)));
+      setMessages((prev) =>
+        prev.filter((m) => m.id !== String(payload.messageId)),
+      );
     });
 
     socket.on("message:updated", (msg: ApiMessage) => {
       const uiMsg = normalizeIncomingMessage(msg);
       if (!uiMsg) return;
 
-      setMessages((prev) =>
-      prev.map((m) => (m.id === uiMsg.id ? uiMsg : m)),
-    );
+      setMessages((prev) => prev.map((m) => (m.id === uiMsg.id ? uiMsg : m)));
     });
 
     socket.on(
@@ -433,7 +439,7 @@ export function ChatPane({
     console.log("socket connected?", socket?.connected);
     if (socket?.connected) {
       socket.emit("message:create", { channelId: Number(channelId), content });
-    return;
+      return;
     }
 
     // Fallback REST
@@ -467,15 +473,15 @@ export function ChatPane({
 
         // if no payload, at least mark as sent
         return prev.map((m) =>
-        m.id === tempId ? { ...m, isOptimistic: false } : m,
-      );
+          m.id === tempId ? { ...m, isOptimistic: false } : m,
+        );
       });
     } catch {
       setMessages((prev) =>
-      prev.map((m) =>
-      m.id === tempId ? { ...m, isOptimistic: false, isFailed: true } : m,
-    ),
-  );
+        prev.map((m) =>
+          m.id === tempId ? { ...m, isOptimistic: false, isFailed: true } : m,
+        ),
+      );
     }
   }
 
@@ -520,11 +526,13 @@ export function ChatPane({
 
         // waiting for "message:updated" to confirm
         setMessages((prev) =>
-        prev.map((m) =>
-        m.id === message.id ? {...m, isOptimistic: false, isFailed: false } : m,
-      ),
-    );
-    return;
+          prev.map((m) =>
+            m.id === message.id
+              ? { ...m, isOptimistic: false, isFailed: false }
+              : m,
+          ),
+        );
+        return;
       }
 
       // REST fallback (existing)
@@ -543,11 +551,11 @@ export function ChatPane({
       }
 
       setMessages((prev) =>
-      prev.map((m) =>
-      m.id === message.id
-    ? { ...m, isOptimistic: false, isEdited: true, isFailed: false }
-  : m,
-),
+        prev.map((m) =>
+          m.id === message.id
+            ? { ...m, isOptimistic: false, isEdited: true, isFailed: false }
+            : m,
+        ),
       );
     } catch {
       // Revert content and flag as failed
@@ -610,9 +618,7 @@ export function ChatPane({
 
   const typingLabel = React.useMemo(() => {
     if (typingUsers.length === 0) return null;
-    const names = typingUsers.map(
-      (u) => u.username ?? `User ${u.userId}`,
-    );
+    const names = typingUsers.map((u) => u.username ?? `User ${u.userId}`);
     if (names.length === 1) {
       return `${names[0]} is typing...`;
     }

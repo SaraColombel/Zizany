@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { ServerController } from "../controllers/server_controller";
-import { MembershipController } from "../controllers/membership_controller";
-import { ChannelController } from "../controllers/channel_controller";
-import { InvitationController } from "../controllers/invitation_controller";
+import { ServerController } from "../controllers/server_controller.js";
+import { MembershipController } from "../controllers/membership_controller.js";
+import { ChannelController } from "../controllers/channel_controller.js";
+import { InvitationController } from "../controllers/invitation_controller.js";
 
 const router = Router();
 const serverController = new ServerController();
