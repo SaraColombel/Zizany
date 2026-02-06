@@ -1,5 +1,5 @@
-import { Server as DomainServer } from "@/backend/domain/entities/server";
-import { Servers as PrismaServer } from "@/../generated/prisma/client";
+import { Server as DomainServer } from "../../../../domain/entities/server.js";
+import { Servers as PrismaServer } from "@prisma/client";
 
 export class PrismaServerMapper {
   static toDomain(prismaServer: PrismaServer): DomainServer {

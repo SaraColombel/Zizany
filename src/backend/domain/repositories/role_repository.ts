@@ -1,4 +1,4 @@
-import type { Role, RoleName, RoleProperties } from "@/backend/domain/entities/role";
+import type { Role, RoleName, RoleProperties } from "../entities/role.js";
 
 export abstract class RoleRepository {
   abstract find_by_id(id: number): Promise<Role | undefined>;

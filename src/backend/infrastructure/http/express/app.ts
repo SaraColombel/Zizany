@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import apiRouter from "./routes";
+import apiRouter from "./routes/index.js";
 import session from "express-session";
 
 /**Export utilisé côté Socket.IO */

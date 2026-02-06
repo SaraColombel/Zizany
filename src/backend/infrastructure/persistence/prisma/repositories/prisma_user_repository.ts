@@ -1,9 +1,9 @@
-import { prisma } from "@/backend/infrastructure/persistence/prisma/prisma.client";
-import { User } from "@/backend/domain/entities/user";
-import { UserRepository } from "@/backend/domain/repositories/user_repository";
-import { PrismaUserMapper } from "@/backend/infrastructure/persistence/prisma/mappers/prisma_user_mapper";
+import { prisma } from "../../../persistence/prisma/prisma.client.js";
+import { User } from "../../../../domain/entities/user.js";
+import { UserRepository } from "../../../../domain/repositories/user_repository.js";
+import { PrismaUserMapper } from "../../../persistence/prisma/mappers/prisma_user_mapper.js";
 
-import type { UserProperties } from "@/backend/domain/entities/user";
+import type { UserProperties } from "../../../../domain/entities/user.js";
 
 export class PrismaUserRepository extends UserRepository {
   async find_by_email(email: string): Promise<User | undefined> {

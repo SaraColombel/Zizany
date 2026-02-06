@@ -1,4 +1,4 @@
-import type { User, UserProperties } from "@/backend/domain/entities/user";
+import type { User, UserProperties } from "../entities/user.js";
 
 export abstract class UserRepository {
   abstract find_by_email(email: string): Promise<User | undefined>;

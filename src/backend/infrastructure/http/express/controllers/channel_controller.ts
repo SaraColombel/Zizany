@@ -1,10 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 
-import { PrismaChannelRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_channel_repository";
+import { PrismaChannelRepository } from "../../../persistence/prisma/repositories/prisma_channel_repository.js";
 import {
   createChannelValidator,
   updateChannelValidator,
-} from "@/backend/infrastructure/validators/vine/channel_validator";
+} from "../../../validators/vine/channel_validator.js";
 import { ValidationError } from "@vinejs/vine";
 
 export class ChannelController {

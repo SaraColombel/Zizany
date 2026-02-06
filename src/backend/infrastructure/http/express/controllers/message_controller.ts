@@ -1,16 +1,18 @@
 import { NextFunction, Request, Response } from "express";
 import { ValidationError } from "@vinejs/vine";
 
-import { PrismaMessageRepository } from "@/backend/infrastructure/persistence/prisma/repositories/prisma_message_repository";
-import { getSocketServer } from "@/backend/infrastructure/ws/socket";
-import { createMessageValidator } from "@/backend/infrastructure/validators/vine/message_validator";
+import { getSocketServer } from "../../../../infrastructure/ws/socket.js";
+import { PrismaMessageRepository } from "../../../persistence/prisma/repositories/prisma_message_repository.js";
+import { createMessageValidator } from "../../../validators/vine/message_validator.js";
 
 export class MessageController {
   async all(req: Request, res: Response, next: NextFunction) {
     try {
       // GET /api/channels/:id/messages
       const channelId = Number(req.params.id);
-      const messages = await new PrismaMessageRepository().get_by_channel(channelId);
+      const messages = await new PrismaMessageRepository().get_by_channel(
+        channelId,
+      );
       return res.json({ messages });
     } catch (err) {
       next(err);
@@ -42,7 +44,9 @@ export class MessageController {
         content,
       });
 
-      getSocketServer()?.to(`channel:${channel_id}`).emit("message:new", message);
+      getSocketServer()
+        ?.to(`channel:${channel_id}`)
+        .emit("message:new", message);
 
       return res.status(201).json({ ok: true, message });
     } catch (err: unknown) {
@@ -68,7 +72,9 @@ export class MessageController {
       await new PrismaMessageRepository().delete(messageId);
 
       // realtime broadcast
-      getSocketServer()?.to(`channel:${channelId}`).emit("message:deleted", { messageId });
+      getSocketServer()
+        ?.to(`channel:${channelId}`)
+        .emit("message:deleted", { messageId });
 
       return res.status(204).send();
     } catch (err) {
@@ -93,10 +99,15 @@ export class MessageController {
         return res.status(400).json({ message: "content is required" });
       }
 
-      const updated = await new PrismaMessageRepository().updateAndReturn(messageId, content.trim());
+      const updated = await new PrismaMessageRepository().updateAndReturn(
+        messageId,
+        content.trim(),
+      );
 
       if (updated) {
-        getSocketServer()?.to(`channel:${channelId}`).emit("message:updated", updated);
+        getSocketServer()
+          ?.to(`channel:${channelId}`)
+          .emit("message:updated", updated);
       }
 
       return res.status(204).send();
@@ -115,10 +126,15 @@ export class MessageController {
         return res.status(400).json({ message: "Invalid message id" });
       }
 
-      const deleted = await new PrismaMessageRepository().deleteAndReturn(messageId);
-      if (!deleted) return res.status(404).json({ message: "Message not found" });
+      const deleted = await new PrismaMessageRepository().deleteAndReturn(
+        messageId,
+      );
+      if (!deleted)
+        return res.status(404).json({ message: "Message not found" });
 
-      getSocketServer()?.to(`channel:${deleted.channel_id}`).emit("message:deleted", { messageId });
+      getSocketServer()
+        ?.to(`channel:${deleted.channel_id}`)
+        .emit("message:deleted", { messageId });
 
       return res.status(204).send();
     } catch (err) {
@@ -141,10 +157,16 @@ export class MessageController {
         return res.status(400).json({ message: "content is required" });
       }
 
-      const updated = await new PrismaMessageRepository().updateAndReturn(messageId, content.trim());
-      if (!updated) return res.status(404).json({ message: "Message not found" });
+      const updated = await new PrismaMessageRepository().updateAndReturn(
+        messageId,
+        content.trim(),
+      );
+      if (!updated)
+        return res.status(404).json({ message: "Message not found" });
 
-      getSocketServer()?.to(`channel:${updated.channel_id}`).emit("message:updated", updated);
+      getSocketServer()
+        ?.to(`channel:${updated.channel_id}`)
+        .emit("message:updated", updated);
 
       return res.status(204).send();
     } catch (err) {
