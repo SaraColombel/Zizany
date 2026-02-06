@@ -5,7 +5,6 @@ import { prisma } from "../../../persistence/prisma/prisma.client.js";
 import { getOnlineUserIds } from "../../../ws/presence_store.js";
 import { PrismaServerMapper } from "../../../persistence/prisma/mappers/prisma_server_mapper.js";
 import type { ServerProperties } from "../../../../domain/entities/server.js";
-
 const ROLE_OWNER = 1;
 
 interface ServerUpdatePayload {
@@ -254,6 +253,8 @@ export class ServerController {
           userId,
           serverId,
         );
+
+      if (!callerMembership) return;
       const callerRoleId = getCallerRoleId(callerMembership);
       if (
         !ensureOwner({
@@ -267,7 +268,10 @@ export class ServerController {
       }
 
       const payload = buildServerUpdatePayload(req.body);
-      const updated = await new PrismaServerRepository().update(serverId, payload);
+      const updated = await new PrismaServerRepository().update(
+        serverId,
+        payload,
+      );
       return res.json({ server: updated });
     } catch (err) {
       next(err);
