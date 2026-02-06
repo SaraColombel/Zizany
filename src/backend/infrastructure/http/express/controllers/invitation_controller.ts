@@ -193,7 +193,7 @@ export class InvitationController {
   }) {
     const { invitationId, userId, serverId } = params;
 
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: any) => {
       const consumed = await tx.invitations.updateMany({
         where: { id: invitationId, used_at: null },
         data: { used_at: new Date(), used_by_user_id: userId },
