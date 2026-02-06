@@ -42,7 +42,6 @@ describeDb("Memberships API", () => {
   let ownerId = 0;
   let memberId = 0;
   let targetId = 0;
-  let extraId = 0;
   let ownedServerId = 0;
   let publicServerId = 0;
   let privateServerId = 0;
@@ -81,14 +80,13 @@ describeDb("Memberships API", () => {
     });
     targetId = target.id;
 
-    const extra = await prisma.users.create({
+    await prisma.users.create({
       data: {
         email: extraUser.email,
         username: extraUser.username,
         password: await hasher.hash(extraUser.password),
       },
     });
-    extraId = extra.id;
 
     const ownedServer = await prisma.servers.create({
       data: { name: "Owned server", owner_id: ownerId, is_public: false },

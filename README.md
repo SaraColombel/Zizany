@@ -61,3 +61,9 @@ npx prisma db seed
 ```bash
 curl http://localhost:4000/api/health
 ```
+
+### 7. Lint
+
+```bash
+npm run lint
+```

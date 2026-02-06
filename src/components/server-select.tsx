@@ -17,8 +17,15 @@ interface Server { id: string; name: string }
 
 export function ServerSelect() {
     const router = useRouter();
-    const [servers, setServers] = React.useState<Server[]>([]);
-    const [loading, setLoading] = React.useState(true);
+    const [servers] = React.useState<Server[]>([]);
+    const [loading] = React.useState(true);
+    let placeholder = "Choose a server";
+
+    if (loading) {
+        placeholder = "Charging...";
+    } else if (servers.length === 0) {
+        placeholder = "No servers found";
+    }
 
     return (
         <Select
@@ -27,13 +34,7 @@ export function ServerSelect() {
         >
         <SelectTrigger className="w-full">
             <SelectValue
-            placeholder={
-                loading
-                ? "Chargement..."
-                : servers.length === 0
-                ? "Aucun serveur"
-                : "Choose a server"
-            }
+            placeholder={placeholder}
             />
         </SelectTrigger>
 

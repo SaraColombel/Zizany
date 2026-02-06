@@ -42,9 +42,4 @@ export class PrismaUserRepository extends UserRepository {
     });
     return PrismaUserMapper.toDomain(user);
   }
-
-  async verify_password(userId: number, password: string): Promise<boolean> {
-    // TODO
-    return true;
-  }
 }

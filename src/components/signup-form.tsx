@@ -2,6 +2,7 @@
 "use client";
 import * as React from "react";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 // ------
 
 import { Button } from "@/components/ui/button";
@@ -28,10 +29,11 @@ interface SignupValues {
 }
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
+  const router = useRouter();
   const {
     register,
     handleSubmit,
-    watch,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<SignupValues>({
     defaultValues: {
@@ -42,7 +44,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     },
   });
 
-  const password = watch("password");
   const [apiError, setApiError] = React.useState<string | null>(null);
 
   async function onSubmit(values: SignupValues) {
@@ -77,7 +78,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
         return;
       }
 
-      window.location.href = "/auth/login";
+      router.push("/auth/login");
     } catch {
       setApiError("Network error: backend unreachable.");
     }
@@ -155,7 +156,8 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                 autoComplete="new-password"
                 {...register("confirmPassword", {
                   required: "Please confirm your password",
-                  validate: (v) => v === password || "Passwords do not match",
+                  validate: (v) =>
+                    v === getValues("password") || "Passwords do not match",
                 })}
               />
 

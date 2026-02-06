@@ -73,19 +73,16 @@ export class MessageController {
         content: req.body?.content,
       });
 
-      const repo = new PrismaMessageRepository();
-
-      // Create and return DTO for realtime broadcast + REST response
-      const dto = await repo.createAndReturn({
+      const message = await new PrismaMessageRepository().createAndReturn({
         channel_id,
-        user_id: Number(user_id),
-        content: String(content).trim(),
-      } as any);
+        user_id,
+        content,
+      });
 
-      getSocketServer()?.to(`channel:${channel_id}`).emit("message:new", dto);
+      getSocketServer()?.to(`channel:${channel_id}`).emit("message:new", message);
 
-      return res.status(201).json({ message: dto });
-    } catch (err:any) {
+      return res.status(201).json({ ok: true, message });
+    } catch (err: unknown) {
       if (err instanceof ValidationError) {
         return res.status(422).json({ err });
       }
@@ -138,7 +135,7 @@ export class MessageController {
       const { content } = req.body;
 
       if (!Number.isFinite(channelId) || !Number.isFinite(messageId)) {
-        return res.status(400).json({ message: "Invalid ids" });
+        return res.status(400).json({ message: "Invalid message id" });
       }
 
       if (!content || typeof content !== "string") {
@@ -235,3 +232,4 @@ export class MessageController {
     }
   }
 }
+

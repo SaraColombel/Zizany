@@ -51,6 +51,10 @@ interface Member {
   }
 }
 
+interface RawMember extends Partial<Member> {
+  props?: Partial<Member>
+}
+
 function getInitials(name: string) {
   return name
     .split(" ")
@@ -117,6 +121,20 @@ export function ServerSettingsPanel({
   const displayServerName =
     savedName.trim() || serverName?.trim() || "this server"
 
+  function getUpdatedName(
+    payload: Record<string, unknown> | null,
+    fallback: string,
+    update: { name?: string },
+  ) {
+    if (typeof payload?.server?.props?.name === "string") {
+      return String(payload.server.props.name)
+    }
+    if (typeof payload?.server?.name === "string") {
+      return String(payload.server.name)
+    }
+    return update.name ?? fallback
+  }
+
   React.useEffect(() => {
     if (!open) return
     const nextName = serverName ?? ""
@@ -148,12 +166,13 @@ export function ServerSettingsPanel({
 
       const json = await res.json()
       const normalized: Member[] = (json.members ?? [])
-        .map((raw: any) => {
-          if (!raw) return null
-          const id = Number(raw.id)
-          const user_id = Number(raw.user_id)
-          const server_id = Number(raw.server_id)
-          const role_id = Number(raw.role_id)
+        .map((raw: RawMember) => {
+          const base = raw && raw.props ? raw.props : raw
+          if (!base) return null
+          const id = Number(base.id)
+          const user_id = Number(base.user_id)
+          const server_id = Number(base.server_id)
+          const role_id = Number(base.role_id)
           if (
             !Number.isFinite(id) ||
             !Number.isFinite(user_id) ||
@@ -167,17 +186,17 @@ export function ServerSettingsPanel({
             user_id,
             server_id,
             role_id,
-            user: raw.user
+            user: base.user
               ? {
-                  id: Number(raw.user.id),
-                  username: String(raw.user.username ?? "Unknown user"),
-                  thumbnail: raw.user.thumbnail ?? null,
+                  id: Number(base.user.id),
+                  username: String(base.user.username ?? "Unknown user"),
+                  thumbnail: base.user.thumbnail ?? null,
                 }
               : undefined,
-            role: raw.role
+            role: base.role
               ? {
-                  id: Number(raw.role.id),
-                  name: String(raw.role.name ?? ROLE_LABELS[role_id] ?? "Member"),
+                  id: Number(base.role.id),
+                  name: String(base.role.name ?? ROLE_LABELS[role_id] ?? "Member"),
                 }
               : undefined,
           } satisfies Member
@@ -323,12 +342,7 @@ export function ServerSettingsPanel({
       }
 
       const json = await res.json().catch(() => null)
-      const updatedName =
-        typeof json?.server?.props?.name === "string"
-          ? json.server.props.name
-          : typeof json?.server?.name === "string"
-            ? json.server.name
-            : updates.name ?? savedName
+      const updatedName = getUpdatedName(json, savedName, updates)
 
       setSavedName(updatedName)
       setNameInput(updatedName)
@@ -386,7 +400,7 @@ export function ServerSettingsPanel({
     } finally {
       setIsDeleting(false)
     }
-  }, [apiBase, isDeleting, onDeleted, refresh, router, serverId, serverName])
+  }, [apiBase, isDeleting, onDeleted, refresh, router, serverId])
 
   return (
     <div className="relative flex h-full flex-col">
@@ -632,7 +646,7 @@ export function ServerSettingsPanel({
 
             <div className="mt-4 space-y-2">
               <label className="text-xs font-semibold tracking-wide text-muted-foreground">
-                TYPE "{ownerConfirmPhrase}" TO CONFIRM
+                TYPE `{ownerConfirmPhrase}` TO CONFIRM
               </label>
               <Input
                 value={ownerConfirmText}
@@ -700,7 +714,7 @@ export function ServerSettingsPanel({
 
             <div className="mt-4 space-y-2">
               <label className="text-xs font-semibold tracking-wide text-muted-foreground">
-                TYPE "{ownerConfirmPhrase}" TO CONFIRM
+                TYPE `{ownerConfirmPhrase}` TO CONFIRM
               </label>
               <Input
                 value={deleteConfirmText}

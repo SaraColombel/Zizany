@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { type Icon } from "@tabler/icons-react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 
@@ -90,7 +91,7 @@ export function NavMain({
         router.push("/servers")
       }
     } catch (err) {
-      window.alert("Network error while leaving the server.")
+      window.alert(err)
     } finally {
       setLeavingId(null)
       closeConfirmLeave()
@@ -128,9 +129,12 @@ export function NavMain({
                       {item.imageUrl ? (
                         <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-muted">
                           {/* Future owner-uploaded server image */}
-                          <img
+                          <Image
                             src={item.imageUrl}
                             alt={item.title}
+                            width={24}
+                            height={24}
+                            sizes="24px"
                             className="h-full w-full rounded-full object-cover"
                           />
                         </span>

@@ -34,11 +34,12 @@ export function SiteHeader() {
 
   const server = servers.find((s) => String(s.id) === serverId)
 
-  const title = server
-    ? server.name
-    : serverId
-      ? "Server"
-      : "Servers List"
+  let title = "Servers List"
+  if (server) {
+    title = server.name
+  } else if (serverId) {
+    title = "Server"
+  }
 
   React.useEffect(() => {
     let cancelled = false
