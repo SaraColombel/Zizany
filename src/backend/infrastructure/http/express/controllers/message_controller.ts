@@ -5,6 +5,41 @@ import { getSocketServer } from "../../../../infrastructure/ws/socket.js";
 import { PrismaMessageRepository } from "../../../persistence/prisma/repositories/prisma_message_repository.js";
 import { createMessageValidator } from "../../../validators/vine/message_validator.js";
 
+import { prisma } from "../../../persistence/prisma/prisma.client.js";
+
+const ROLE_OWNER = 1;
+const ROLE_ADMIN = 2;
+
+function requireAuth(req: Request, res: Response): number | null {
+  const uid = req.session.user_id;
+  if (!uid) {
+    res.status(401).json({ code: "E_UNAUTHORIZED_ACCESS" });
+    return null;
+  }
+  return Number(uid);
+}
+
+async function getMessageScope(messageId: number) {
+  // message + server_id via channel
+  return prisma.messages.findUnique({
+    where: { id: messageId },
+    select: {
+      id: true,
+      user_id: true,
+      channel_id: true,
+      channel: { select: { server_id: true } },
+    },
+  });
+}
+
+async function getUserRoleId(userId: number, serverId: number) {
+  const membership = await prisma.memberships.findFirst({
+    where: { user_id: userId, server_id: serverId },
+    select: { role_id: true },
+  });
+  return membership?.role_id ?? null;
+}
+
 export class MessageController {
   async all(req: Request, res: Response, next: NextFunction) {
     try {
@@ -31,9 +66,12 @@ export class MessageController {
 
   async create(req: Request, res: Response, next: NextFunction) {
     try {
+      // POST /api/channels/:id/messages
+      // We validate "content" + session user_id, and channel_id from params.
+      const channelId = Number(req.params.id);
       const { channel_id, user_id, content } =
         await createMessageValidator.validate({
-          channel_id: Number(req.params.id),
+          channel_id: channelId,
           user_id: req.session.user_id,
           content: req.body?.content,
         });
@@ -57,16 +95,31 @@ export class MessageController {
     }
   }
 
-  /**
-   * DELETE /api/channels/:channelId/messages/:messageId
-   */
   async delete(req: Request, res: Response, next: NextFunction) {
     try {
+      const userId = requireAuth(req, res);
+      if (userId === null) return;
+
       const channelId = Number(req.params.channelId);
       const messageId = Number(req.params.messageId);
 
       if (!Number.isFinite(channelId) || !Number.isFinite(messageId)) {
-        return res.status(400).json({ message: "Invalid message id" });
+        return res.status(400).json({ message: "Invalid ids" });
+      }
+
+      const scope = await getMessageScope(messageId);
+      if (!scope) return res.status(404).json({ message: "Message not found" });
+
+      const serverId = scope.channel.server_id;
+      const roleId = await getUserRoleId(userId, serverId);
+      if (!roleId)
+        return res.status(403).json({ message: "Not a member of this server" });
+
+      const isAuthor = scope.user_id === userId;
+      const canModerateDelete = roleId === ROLE_OWNER || roleId === ROLE_ADMIN;
+
+      if (!isAuthor && !canModerateDelete) {
+        return res.status(403).json({ message: "Forbidden" });
       }
 
       await new PrismaMessageRepository().delete(messageId);
@@ -82,11 +135,11 @@ export class MessageController {
     }
   }
 
-  /**
-   * PATCH /api/channels/:channelId/messages/:messageId
-   */
   async update(req: Request, res: Response, next: NextFunction) {
     try {
+      const userId = requireAuth(req, res);
+      if (userId === null) return;
+
       const channelId = Number(req.params.channelId);
       const messageId = Number(req.params.messageId);
       const { content } = req.body;
@@ -116,14 +169,29 @@ export class MessageController {
     }
   }
 
-  /**
-   * DELETE /api/messages/:id  (PDF required)
-   */
   async deleteById(req: Request, res: Response, next: NextFunction) {
     try {
+      const userId = requireAuth(req, res);
+      if (userId === null) return;
+
       const messageId = Number(req.params.id);
       if (!Number.isFinite(messageId)) {
         return res.status(400).json({ message: "Invalid message id" });
+      }
+
+      const scope = await getMessageScope(messageId);
+      if (!scope) return res.status(404).json({ message: "Message not found" });
+
+      const serverId = scope.channel.server_id;
+      const roleId = await getUserRoleId(userId, serverId);
+      if (!roleId)
+        return res.status(403).json({ message: "Not a member of this server" });
+
+      const isAuthor = scope.user_id === userId;
+      const canModerateDelete = roleId === ROLE_OWNER || roleId === ROLE_ADMIN;
+
+      if (!isAuthor && !canModerateDelete) {
+        return res.status(403).json({ message: "Forbidden" });
       }
 
       const deleted = await new PrismaMessageRepository().deleteAndReturn(
@@ -142,11 +210,11 @@ export class MessageController {
     }
   }
 
-  /**
-   * PATCH /api/messages/:id  (optional but used as fallback)
-   */
   async updateById(req: Request, res: Response, next: NextFunction) {
     try {
+      const userId = requireAuth(req, res);
+      if (userId === null) return;
+
       const messageId = Number(req.params.id);
       const { content } = req.body;
 
@@ -155,6 +223,16 @@ export class MessageController {
       }
       if (!content || typeof content !== "string") {
         return res.status(400).json({ message: "content is required" });
+      }
+
+      const scope = await getMessageScope(messageId);
+      if (!scope) return res.status(404).json({ message: "Message not found" });
+
+      // règle: seul l'auteur peut modifier
+      if (scope.user_id !== userId) {
+        return res
+          .status(403)
+          .json({ message: "Only author can edit message" });
       }
 
       const updated = await new PrismaMessageRepository().updateAndReturn(
